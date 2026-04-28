@@ -11,6 +11,8 @@ import OfferDetail from "@/pages/offer-detail";
 import Orders from "@/pages/orders";
 import Checkout from "@/pages/checkout";
 import OrderDetail from "@/pages/order-detail";
+import Customers from "@/pages/customers";
+import CustomerProfile from "@/pages/customer-profile";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +24,8 @@ function Router() {
         <Route path="/search" component={Search} />
         <Route path="/search/:offerRequestId" component={Search} />
         <Route path="/offers/:offerId" component={OfferDetail} />
+        <Route path="/customers" component={Customers} />
+        <Route path="/customers/:id" component={CustomerProfile} />
         <Route path="/orders" component={Orders} />
         <Route path="/orders/new" component={Checkout} />
         <Route path="/orders/:orderId" component={OrderDetail} />
