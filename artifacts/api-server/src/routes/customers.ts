@@ -179,7 +179,19 @@ router.post("/customers/import", requireAuth, async (req, res) => {
       if (row.bookingDate) ticketData.bookingDate = row.bookingDate;
       if (row.paymentMethod) ticketData.notes = `Payment method: ${row.paymentMethod}`;
 
-      const ticketParsed = insertTicketSchema.safeParse(ticketData);
+      let ticketParsed = insertTicketSchema.safeParse(ticketData);
+      if (!ticketParsed.success && ticketData.bookingDate) {
+        const { bookingDate: _bd, ...ticketDataWithoutBookingDate } = ticketData;
+        ticketParsed = insertTicketSchema.safeParse(ticketDataWithoutBookingDate);
+        if (ticketParsed.success && _bd) {
+          const inserted = await db.insert(ticketsTable).values(ticketParsed.data).returning({ id: ticketsTable.id });
+          if (inserted[0] && typeof _bd === "string") {
+            await db.update(ticketsTable).set({ bookingDate: _bd }).where(eq(ticketsTable.id, inserted[0].id));
+          }
+          results.push({ customerName: row.fullName, success: true });
+          continue;
+        }
+      }
       if (ticketParsed.success) {
         await db.insert(ticketsTable).values(ticketParsed.data);
       }

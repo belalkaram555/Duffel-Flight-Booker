@@ -328,7 +328,7 @@ export default function TicketDetail() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4 max-w-3xl">
+      <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
         <Card><CardContent className="p-6 space-y-3">
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-4 w-full" />)}
@@ -350,7 +350,7 @@ export default function TicketDetail() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/tickets")}>

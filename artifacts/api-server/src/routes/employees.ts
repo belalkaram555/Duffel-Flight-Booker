@@ -71,12 +71,10 @@ router.get("/employees", async (req, res) => {
           activeCustomers: sql<number>`(
             SELECT COUNT(*)::int FROM ${customersTable}
             WHERE ${customersTable.assignedEmployeeId} = ${employeesTable.id}
-            AND ${customersTable.status} NOT IN ('cancelled', 'lost')
           )`,
           openTickets: sql<number>`(
             SELECT COUNT(*)::int FROM ${ticketsTable}
             WHERE ${ticketsTable.employeeId} = ${employeesTable.id}
-            AND ${ticketsTable.ticketStatus} NOT IN ('cancelled', 'refunded', 'issued')
           )`,
         })
         .from(employeesTable)

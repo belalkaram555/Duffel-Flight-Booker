@@ -447,7 +447,7 @@ export default function CustomerProfile() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <Card><CardContent className="p-6 space-y-3">
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-4 w-full" />)}
@@ -465,7 +465,7 @@ export default function CustomerProfile() {
   const customerTickets = ticketsData?.tickets ?? [];
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/customers">
           <Button variant="ghost" size="sm" className="flex items-center gap-1.5 -ml-2">
@@ -562,27 +562,30 @@ export default function CustomerProfile() {
         </div>
       </div>
 
-      {/* Info Card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4" /> Customer Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-            <InfoRow label="Phone" value={c.phone} icon={<Phone className="h-3.5 w-3.5" />} />
-            <InfoRow label="WhatsApp" value={c.whatsapp} icon={<Phone className="h-3.5 w-3.5" />} />
-            <InfoRow label="Email" value={c.email} icon={<Mail className="h-3.5 w-3.5" />} />
-            <InfoRow label="Nationality" value={c.nationality} icon={<Globe className="h-3.5 w-3.5" />} />
-            <InfoRow label="Passport No." value={c.passportNumber} icon={<CreditCard className="h-3.5 w-3.5" />} />
-            <InfoRow label="National ID" value={c.nationalId} icon={<CreditCard className="h-3.5 w-3.5" />} />
-            <InfoRow label="Address" value={c.address} icon={<MapPin className="h-3.5 w-3.5" />} />
-            <InfoRow label="Added" value={formatShortDate(c.createdAt)} />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Two-column layout on large screens */}
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-start">
 
-      {/* Tickets Section */}
-      <Card>
+        {/* Left column: Customer Details */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4" /> Customer Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-y-3">
+              <InfoRow label="Phone" value={c.phone} icon={<Phone className="h-3.5 w-3.5" />} />
+              <InfoRow label="WhatsApp" value={c.whatsapp} icon={<Phone className="h-3.5 w-3.5" />} />
+              <InfoRow label="Email" value={c.email} icon={<Mail className="h-3.5 w-3.5" />} />
+              <InfoRow label="Nationality" value={c.nationality} icon={<Globe className="h-3.5 w-3.5" />} />
+              <InfoRow label="Passport No." value={c.passportNumber} icon={<CreditCard className="h-3.5 w-3.5" />} />
+              <InfoRow label="National ID" value={c.nationalId} icon={<CreditCard className="h-3.5 w-3.5" />} />
+              <InfoRow label="Address" value={c.address} icon={<MapPin className="h-3.5 w-3.5" />} />
+              <InfoRow label="Added" value={formatShortDate(c.createdAt)} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Right column: Tickets */}
+        <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Ticket className="h-4 w-4" /> Flight Tickets
