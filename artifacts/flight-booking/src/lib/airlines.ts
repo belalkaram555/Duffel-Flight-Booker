@@ -47,6 +47,11 @@ export const AIRLINE_WEBSITES: Record<string, string> = {
   RO: "https://www.tarom.ro",
   LO: "https://www.lot.com",
   OK: "https://www.csa.cz",
+  F3: "https://www.flyadeal.com",
+  SM: "https://www.aircairo.com",
+  NP: "https://www.nileair.com",
+  E5: "https://www.airarabia.com/en/air-arabia-egypt",
+  J9: "https://www.jazeeraairways.com",
 };
 
 export function getAirlineWebsite(iataCode: string): string | null {

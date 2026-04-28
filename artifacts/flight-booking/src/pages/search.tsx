@@ -9,7 +9,7 @@ import { formatCurrency, formatDuration, formatShortDate } from "@/lib/formatter
 import { getAirlineWebsite } from "@/lib/airlines";
 import {
   Plane, Search as SearchIcon, ArrowRight, Clock, Users, ArrowLeftRight,
-  Luggage, ShoppingBag, ExternalLink, Filter, RotateCcw, ChevronDown, ChevronUp,
+  Luggage, ShoppingBag, ExternalLink, Filter, RotateCcw, ChevronDown, ChevronUp, Info,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -518,6 +518,36 @@ export default function Search() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Direct-booking airlines notice */}
+      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3 flex gap-3 text-sm">
+        <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+        <div>
+          <span className="font-medium text-amber-800 dark:text-amber-300">بعض الشركات لا تظهر في البحث المباشر</span>
+          <span className="text-amber-700 dark:text-amber-400 mx-1">—</span>
+          <span className="text-amber-700 dark:text-amber-400">يجب حجزها مباشرة من موقعها أو إضافة تذكرتها يدوياً:</span>
+          <div className="flex flex-wrap gap-3 mt-2">
+            {[
+              { name: "Jazeera Airways", code: "J9", url: "https://www.jazeeraairways.com" },
+              { name: "Air Cairo", code: "SM", url: "https://www.aircairo.com" },
+              { name: "Nile Air", code: "NP", url: "https://www.nileair.com" },
+              { name: "flyadeal", code: "F3", url: "https://www.flyadeal.com" },
+              { name: "Air Arabia Egypt", code: "E5", url: "https://www.airarabia.com/en/air-arabia-egypt" },
+            ].map((a) => (
+              <a
+                key={a.code}
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium text-amber-800 dark:text-amber-300 underline underline-offset-2 hover:text-amber-900"
+              >
+                {a.name} ({a.code})
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {isLoading && (
         <div className="space-y-3">

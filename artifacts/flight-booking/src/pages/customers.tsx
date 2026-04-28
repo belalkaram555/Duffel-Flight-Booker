@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Users, Plus, Search, ChevronRight, Phone, FileSpreadsheet, TrendingUp, TrendingDown, Trash2 } from "lucide-react";
+import { Users, Plus, Search, ChevronRight, Phone, FileSpreadsheet, TrendingUp, TrendingDown, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -126,6 +126,8 @@ export function CustomerFormSheet({
 export default function Customers() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<"name" | "bookingDate" | "netProfit" | "createdAt">("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -144,17 +146,53 @@ export default function Customers() {
 
   const allCustomers = data?.customers ?? [];
 
-  const customers = allCustomers.filter((c) => {
-    const q = search.toLowerCase();
-    const matchesSearch =
-      !q ||
-      c.fullName.toLowerCase().includes(q) ||
-      (c.phone ?? "").toLowerCase().includes(q) ||
-      (c.pnr ?? "").toLowerCase().includes(q) ||
-      (c.passportNumber ?? "").toLowerCase().includes(q);
-    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  function toggleSort(col: typeof sortBy) {
+    if (sortBy === col) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(col);
+      setSortDir(col === "name" ? "asc" : "desc");
+    }
+  }
+
+  function SortIcon({ col }: { col: typeof sortBy }) {
+    if (sortBy !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40 inline" />;
+    return sortDir === "asc"
+      ? <ArrowUp className="h-3 w-3 ml-1 text-primary inline" />
+      : <ArrowDown className="h-3 w-3 ml-1 text-primary inline" />;
+  }
+
+  const customers = allCustomers
+    .filter((c) => {
+      const q = search.toLowerCase();
+      const matchesSearch =
+        !q ||
+        c.fullName.toLowerCase().includes(q) ||
+        (c.phone ?? "").toLowerCase().includes(q) ||
+        (c.pnr ?? "").toLowerCase().includes(q) ||
+        (c.passportNumber ?? "").toLowerCase().includes(q);
+      const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "name") {
+        cmp = a.fullName.localeCompare(b.fullName);
+      } else if (sortBy === "bookingDate") {
+        const da = a.bookingDate ? new Date(a.bookingDate).getTime() : 0;
+        const db2 = b.bookingDate ? new Date(b.bookingDate).getTime() : 0;
+        cmp = da - db2;
+      } else if (sortBy === "netProfit") {
+        const pa = netProfit(a) ?? -Infinity;
+        const pb = netProfit(b) ?? -Infinity;
+        cmp = pa - pb;
+      } else {
+        const da = new Date(a.createdAt).getTime();
+        const db2 = new Date(b.createdAt).getTime();
+        cmp = da - db2;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
 
   function toggleSelect(id: number) {
     setSelectedIds((prev) => {
@@ -307,13 +345,19 @@ export default function Customers() {
                   </div>
                 )}
                 <div className="flex-1 grid grid-cols-[2fr_1.3fr_0.7fr_0.9fr_0.9fr_1fr_0.9fr_auto] gap-3 px-6 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  <span>Name</span>
+                  <button type="button" onClick={() => toggleSort("name")} className="flex items-center hover:text-foreground transition-colors text-left">
+                    Name<SortIcon col="name" />
+                  </button>
                   <span>Phone</span>
                   <span>Status</span>
                   <span>Passport No.</span>
                   <span>PNR</span>
-                  <span>Booking Date</span>
-                  <span>Net Profit (KWD)</span>
+                  <button type="button" onClick={() => toggleSort("bookingDate")} className="flex items-center hover:text-foreground transition-colors text-left">
+                    Booking Date<SortIcon col="bookingDate" />
+                  </button>
+                  <button type="button" onClick={() => toggleSort("netProfit")} className="flex items-center hover:text-foreground transition-colors text-left">
+                    Net Profit<SortIcon col="netProfit" />
+                  </button>
                   <span className="w-4" />
                 </div>
               </div>

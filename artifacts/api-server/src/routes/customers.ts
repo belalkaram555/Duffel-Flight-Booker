@@ -52,7 +52,7 @@ router.get("/customers", requireAuth, async (req, res) => {
           ORDER BY created_at DESC LIMIT 1
         )`,
         bookingDate: sql<string | null>`(
-          SELECT created_at FROM tickets WHERE customer_id = ${customersTable.id}
+          SELECT COALESCE(booking_date::text, created_at::text) FROM tickets WHERE customer_id = ${customersTable.id}
           ORDER BY created_at DESC LIMIT 1
         )`,
         costPrice: sql<string | null>`(
