@@ -62,12 +62,15 @@ export function CustomerForm({ initialValues, submitLabel, isPending, onSubmit, 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
+    const REQUIRED = new Set(["fullName", "phone"]);
     const payload: Record<string, unknown> = {};
     Object.entries(form).forEach(([k, v]) => {
       if (k === "assignedEmployeeId") {
-        if (v) payload[k] = Number(v);
-      } else if (v) {
+        payload[k] = v ? Number(v) : null;
+      } else if (REQUIRED.has(k)) {
         payload[k] = v;
+      } else {
+        payload[k] = v || null;
       }
     });
     onSubmit(payload);

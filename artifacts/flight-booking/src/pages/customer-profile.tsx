@@ -299,7 +299,7 @@ function NoteCard({ note, customerId }: { note: Note; customerId: number }) {
       <div className="flex-1 pb-4">
         <div className="bg-card border rounded-lg p-3 shadow-sm">
           <p className="text-sm whitespace-pre-wrap">{note.note}</p>
-          {(note.followUpDate || note.ticketId) && (
+          {(note.followUpDate || note.followUpStatus || note.ticketId) && (
             <div className="mt-2 pt-2 border-t space-y-1.5">
               {note.ticketId && (
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -308,28 +308,26 @@ function NoteCard({ note, customerId }: { note: Note; customerId: number }) {
                 </div>
               )}
               {note.followUpDate && (
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    Follow-up: {formatShortDate(note.followUpDate)}
-                  </div>
-                  {fuStyle && (
-                    <div className="flex items-center gap-1.5">
-                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${fuStyle.cls}`}>
-                        {fuStyle.icon} {fuStyle.label}
-                      </span>
-                      {note.followUpStatus === "pending" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 text-xs px-2"
-                          disabled={markDone.isPending}
-                          onClick={() => markDone.mutate()}
-                        >
-                          <Check className="h-3 w-3 mr-1" /> Mark Done
-                        </Button>
-                      )}
-                    </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  Follow-up: {formatShortDate(note.followUpDate)}
+                </div>
+              )}
+              {fuStyle && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${fuStyle.cls}`}>
+                    {fuStyle.icon} {fuStyle.label}
+                  </span>
+                  {note.followUpStatus === "pending" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-xs px-2"
+                      disabled={markDone.isPending}
+                      onClick={() => markDone.mutate()}
+                    >
+                      <Check className="h-3 w-3 mr-1" /> Mark Done
+                    </Button>
                   )}
                 </div>
               )}
