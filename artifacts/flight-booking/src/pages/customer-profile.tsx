@@ -684,6 +684,8 @@ export default function CustomerProfile() {
         </CardContent>
       </Card>
 
+      </div>{/* end grid */}
+
       {/* Notes Section */}
       <div className="space-y-4" ref={notesSectionRef}>
         <div className="flex items-center justify-between">
