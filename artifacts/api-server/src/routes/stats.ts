@@ -1,7 +1,22 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { duffel } from "../lib/duffel";
+import { validateSession } from "../lib/sessions.js";
 
 const router = Router();
+
+const requireAuth: RequestHandler = (req, res, next) => {
+  const auth = req.headers["authorization"];
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "unauthorized", message: "Authentication required" });
+    return;
+  }
+  const session = validateSession(auth.slice(7));
+  if (!session) {
+    res.status(401).json({ error: "unauthorized", message: "Session expired or invalid. Please log in again." });
+    return;
+  }
+  next();
+};
 
 function formatOrder(order: Record<string, unknown>) {
   const o = order as {
@@ -71,7 +86,7 @@ function formatOrder(order: Record<string, unknown>) {
   };
 }
 
-router.get("/stats/summary", async (req, res) => {
+router.get("/stats/summary", requireAuth, async (req, res) => {
   try {
     const response = await duffel.orders.list({ limit: 200 });
     const rawOrders = response.data as unknown as Array<Record<string, unknown>>;

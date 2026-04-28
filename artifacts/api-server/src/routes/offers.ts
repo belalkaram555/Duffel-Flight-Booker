@@ -1,7 +1,8 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { duffel } from "../lib/duffel";
 import type { OfferAvailableServiceBaggage } from "@duffel/api";
 import { SearchOffersBody } from "@workspace/api-zod";
+import { validateSession } from "../lib/sessions.js";
 
 function extractBaggageWeightMap(
   availableServices: { type: string; metadata?: unknown; segment_ids?: string[] }[]
@@ -89,7 +90,21 @@ function extractDuffelError(err: unknown): { message: string; code: string; http
 
 const router = Router();
 
-router.post("/offers/search", async (req, res) => {
+const requireAuth: RequestHandler = (req, res, next) => {
+  const auth = req.headers["authorization"];
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "unauthorized", message: "Authentication required" });
+    return;
+  }
+  const session = validateSession(auth.slice(7));
+  if (!session) {
+    res.status(401).json({ error: "unauthorized", message: "Session expired or invalid. Please log in again." });
+    return;
+  }
+  next();
+};
+
+router.post("/offers/search", requireAuth, async (req, res) => {
   const parsed = SearchOffersBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({
@@ -232,7 +247,7 @@ router.post("/offers/search", async (req, res) => {
   }
 });
 
-router.get("/offers/:offerId", async (req, res) => {
+router.get("/offers/:offerId", requireAuth, async (req, res) => {
   const { offerId } = req.params;
 
   try {

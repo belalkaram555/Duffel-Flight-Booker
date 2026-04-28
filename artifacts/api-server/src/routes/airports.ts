@@ -1,9 +1,24 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { duffel } from "../lib/duffel";
+import { validateSession } from "../lib/sessions.js";
 
 const router = Router();
 
-router.get("/airports/search", async (req, res) => {
+const requireAuth: RequestHandler = (req, res, next) => {
+  const auth = req.headers["authorization"];
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "unauthorized", message: "Authentication required" });
+    return;
+  }
+  const session = validateSession(auth.slice(7));
+  if (!session) {
+    res.status(401).json({ error: "unauthorized", message: "Session expired or invalid. Please log in again." });
+    return;
+  }
+  next();
+};
+
+router.get("/airports/search", requireAuth, async (req, res) => {
   const query = String(req.query.query ?? "").trim();
 
   if (query.length < 1) {

@@ -1,8 +1,23 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { eq, and, gte, lt, desc, isNotNull, SQL } from "drizzle-orm";
 import { db, remindersTable, customerNotesTable, customersTable, insertReminderSchema, updateReminderSchema } from "@workspace/db";
+import { validateSession } from "../lib/sessions.js";
 
 const router = Router();
+
+const requireAuth: RequestHandler = (req, res, next) => {
+  const auth = req.headers["authorization"];
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "unauthorized", message: "Authentication required" });
+    return;
+  }
+  const session = validateSession(auth.slice(7));
+  if (!session) {
+    res.status(401).json({ error: "unauthorized", message: "Session expired or invalid. Please log in again." });
+    return;
+  }
+  next();
+};
 
 function coerceDates(body: Record<string, unknown>, ...fields: string[]) {
   const result = { ...body };
@@ -14,7 +29,7 @@ function coerceDates(body: Record<string, unknown>, ...fields: string[]) {
   return result;
 }
 
-router.get("/reminders", async (req, res) => {
+router.get("/reminders", requireAuth, async (req, res) => {
   try {
     const { status, employeeId } = req.query as Record<string, string | undefined>;
 
@@ -46,7 +61,7 @@ router.get("/reminders", async (req, res) => {
   }
 });
 
-router.post("/reminders", async (req, res) => {
+router.post("/reminders", requireAuth, async (req, res) => {
   const parsed = insertReminderSchema.safeParse(coerceDates(req.body as Record<string, unknown>, "reminderDate"));
   if (!parsed.success) {
     res.status(400).json({ error: "validation_error", message: parsed.error.message });
@@ -61,7 +76,7 @@ router.post("/reminders", async (req, res) => {
   }
 });
 
-router.put("/reminders/:id/status", async (req, res) => {
+router.put("/reminders/:id/status", requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: "validation_error", message: "Invalid reminder ID" });
@@ -94,7 +109,7 @@ router.put("/reminders/:id/status", async (req, res) => {
   }
 });
 
-router.get("/followups", async (req, res) => {
+router.get("/followups", requireAuth, async (req, res) => {
   try {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());

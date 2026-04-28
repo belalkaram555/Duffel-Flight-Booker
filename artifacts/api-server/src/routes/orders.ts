@@ -1,8 +1,23 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { duffel } from "../lib/duffel";
 import { CreateOrderBody, ListOrdersQueryParams, GetOrderParams, CancelOrderParams } from "@workspace/api-zod";
+import { validateSession } from "../lib/sessions.js";
 
 const router = Router();
+
+const requireAuth: RequestHandler = (req, res, next) => {
+  const auth = req.headers["authorization"];
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "unauthorized", message: "Authentication required" });
+    return;
+  }
+  const session = validateSession(auth.slice(7));
+  if (!session) {
+    res.status(401).json({ error: "unauthorized", message: "Session expired or invalid. Please log in again." });
+    return;
+  }
+  next();
+};
 
 function formatOrder(order: Record<string, unknown>) {
   const o = order as {
@@ -154,7 +169,7 @@ function formatOrder(order: Record<string, unknown>) {
   };
 }
 
-router.get("/orders", async (req, res) => {
+router.get("/orders", requireAuth, async (req, res) => {
   const parsed = ListOrdersQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({
@@ -191,7 +206,7 @@ router.get("/orders", async (req, res) => {
   }
 });
 
-router.post("/orders", async (req, res) => {
+router.post("/orders", requireAuth, async (req, res) => {
   const parsed = CreateOrderBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({
@@ -241,7 +256,7 @@ router.post("/orders", async (req, res) => {
   }
 });
 
-router.get("/orders/:orderId", async (req, res) => {
+router.get("/orders/:orderId", requireAuth, async (req, res) => {
   const parsed = GetOrderParams.safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({
@@ -263,7 +278,7 @@ router.get("/orders/:orderId", async (req, res) => {
   }
 });
 
-router.post("/orders/:orderId/cancel", async (req, res) => {
+router.post("/orders/:orderId/cancel", requireAuth, async (req, res) => {
   const parsed = CancelOrderParams.safeParse(req.params);
   if (!parsed.success) {
     res.status(400).json({
