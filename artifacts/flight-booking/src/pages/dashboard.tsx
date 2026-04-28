@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useGetStatsSummary } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "wouter";
 import { formatCurrency, formatShortDate, formatDateTime } from "@/lib/formatters";
 import {
@@ -194,28 +195,37 @@ export default function Dashboard() {
                     <Users className="h-4 w-4 text-muted-foreground" /> Recent Customers
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                   {crmData.recentCustomers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No customers yet.</p>
+                    <p className="text-sm text-muted-foreground px-6 pb-4">No customers yet.</p>
                   ) : (
-                    <div className="space-y-2">
-                      {crmData.recentCustomers.map((c) => (
-                        <Link key={c.id} href={`/customers/${c.id}`}>
-                          <div className="flex items-center justify-between py-1.5 hover:bg-muted/30 rounded px-1 transition-colors">
-                            <div className="min-w-0">
-                              <div className="font-medium text-sm truncate">{c.fullName}</div>
-                              <div className="text-xs text-muted-foreground">{formatShortDate(c.createdAt)}</div>
-                            </div>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-700"}`}>
-                              {STATUS_LABELS[c.status] ?? c.status}
-                            </span>
-                          </div>
-                        </Link>
-                      ))}
-                      <Link href="/customers" className="block text-xs text-primary hover:underline mt-1">
-                        View all customers →
-                      </Link>
-                    </div>
+                    <>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Added</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {crmData.recentCustomers.map((c) => (
+                            <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => window.location.assign(`${BASE}/customers/${c.id}`)}>
+                              <TableCell className="font-medium text-sm truncate max-w-[120px]">{c.fullName}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{formatShortDate(c.createdAt)}</TableCell>
+                              <TableCell>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-700"}`}>
+                                  {STATUS_LABELS[c.status] ?? c.status}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <div className="px-6 py-2 border-t">
+                        <Link href="/customers" className="text-xs text-primary hover:underline">View all customers →</Link>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -226,28 +236,37 @@ export default function Dashboard() {
                     <Tag className="h-4 w-4 text-muted-foreground" /> Recent Tickets
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                   {crmData.recentTickets.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No tickets yet.</p>
+                    <p className="text-sm text-muted-foreground px-6 pb-4">No tickets yet.</p>
                   ) : (
-                    <div className="space-y-2">
-                      {crmData.recentTickets.map((t) => (
-                        <Link key={t.id} href={`/tickets/${t.id}`}>
-                          <div className="flex items-center justify-between py-1.5 hover:bg-muted/30 rounded px-1 transition-colors">
-                            <div className="min-w-0">
-                              <div className="font-medium text-sm truncate">{t.customerName ?? `Ticket #${t.id}`}</div>
-                              <div className="text-xs text-muted-foreground">{t.flightRoute ?? "—"}</div>
-                            </div>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${TICKET_STATUS_COLORS[t.ticketStatus] ?? ""}`}>
-                              {TICKET_STATUS_LABELS[t.ticketStatus] ?? t.ticketStatus}
-                            </span>
-                          </div>
-                        </Link>
-                      ))}
-                      <Link href="/tickets" className="block text-xs text-primary hover:underline mt-1">
-                        View all tickets →
-                      </Link>
-                    </div>
+                    <>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Customer</TableHead>
+                            <TableHead>Route</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {crmData.recentTickets.map((t) => (
+                            <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => window.location.assign(`${BASE}/tickets/${t.id}`)}>
+                              <TableCell className="font-medium text-sm truncate max-w-[110px]">{t.customerName ?? `#${t.id}`}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{t.flightRoute ?? "—"}</TableCell>
+                              <TableCell>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${TICKET_STATUS_COLORS[t.ticketStatus] ?? ""}`}>
+                                  {TICKET_STATUS_LABELS[t.ticketStatus] ?? t.ticketStatus}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <div className="px-6 py-2 border-t">
+                        <Link href="/tickets" className="text-xs text-primary hover:underline">View all tickets →</Link>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
