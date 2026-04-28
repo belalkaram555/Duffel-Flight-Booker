@@ -13,8 +13,7 @@ import { formatShortDate } from "@/lib/formatters";
 import { CustomerForm, EMPTY_CUSTOMER_FORM } from "@/components/customer-form";
 import { ExcelImportDialog } from "@/components/excel-import";
 import { STATUS_COLORS, STATUS_LABELS, CUSTOMER_STATUSES } from "@/lib/customer-constants";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { authFetch, BASE } from "@/lib/api";
 
 interface Customer {
   id: number;
@@ -40,15 +39,14 @@ interface Customer {
 }
 
 async function fetchCustomers(): Promise<{ customers: Customer[] }> {
-  const res = await fetch(`${BASE}/api/customers`);
+  const res = await authFetch(`${BASE}/api/customers`);
   if (!res.ok) throw new Error("Failed to fetch customers");
   return res.json();
 }
 
 async function createCustomer(data: Record<string, unknown>): Promise<{ customer: Customer }> {
-  const res = await fetch(`${BASE}/api/customers`, {
+  const res = await authFetch(`${BASE}/api/customers`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   const json = await res.json();

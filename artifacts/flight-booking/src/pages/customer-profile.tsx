@@ -21,8 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatShortDate, formatDateTime } from "@/lib/formatters";
 import { STATUS_COLORS, STATUS_LABELS, CUSTOMER_STATUSES } from "@/lib/customer-constants";
 import { CustomerForm } from "@/components/customer-form";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { authFetch, BASE } from "@/lib/api";
 
 const FOLLOW_UP_STATUS_STYLES: Record<string, { cls: string; label: string; icon: React.ReactNode }> = {
   pending: { cls: "bg-yellow-100 text-yellow-800", label: "Pending", icon: <Clock className="h-3 w-3" /> },
@@ -61,21 +60,20 @@ interface Note {
 }
 
 async function fetchCustomer(id: number): Promise<{ customer: Customer }> {
-  const res = await fetch(`${BASE}/api/customers/${id}`);
+  const res = await authFetch(`${BASE}/api/customers/${id}`);
   if (!res.ok) throw new Error("Customer not found");
   return res.json();
 }
 
 async function fetchNotes(id: number): Promise<{ notes: Note[] }> {
-  const res = await fetch(`${BASE}/api/customers/${id}/notes`);
+  const res = await authFetch(`${BASE}/api/customers/${id}/notes`);
   if (!res.ok) throw new Error("Failed to fetch notes");
   return res.json();
 }
 
 async function updateCustomer(id: number, data: Record<string, unknown>): Promise<{ customer: Customer }> {
-  const res = await fetch(`${BASE}/api/customers/${id}`, {
+  const res = await authFetch(`${BASE}/api/customers/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   const json = await res.json();
@@ -84,7 +82,7 @@ async function updateCustomer(id: number, data: Record<string, unknown>): Promis
 }
 
 async function deleteCustomer(id: number): Promise<void> {
-  const res = await fetch(`${BASE}/api/customers/${id}`, { method: "DELETE" });
+  const res = await authFetch(`${BASE}/api/customers/${id}`, { method: "DELETE" });
   const json = await res.json();
   if (!res.ok) throw new Error(json.message || "Failed to delete customer");
 }
@@ -93,9 +91,8 @@ async function createNote(
   customerId: number,
   data: { note: string; followUpDate?: string; followUpStatus?: string; ticketId?: number }
 ): Promise<{ note: Note }> {
-  const res = await fetch(`${BASE}/api/customers/${customerId}/notes`, {
+  const res = await authFetch(`${BASE}/api/customers/${customerId}/notes`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   const json = await res.json();
@@ -104,9 +101,8 @@ async function createNote(
 }
 
 async function updateNote(noteId: number, data: { followUpStatus?: string }): Promise<{ note: Note }> {
-  const res = await fetch(`${BASE}/api/notes/${noteId}`, {
+  const res = await authFetch(`${BASE}/api/notes/${noteId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   const json = await res.json();

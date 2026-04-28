@@ -12,8 +12,7 @@ import {
 import { TICKET_STATUS_COLORS, TICKET_STATUS_LABELS, PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS } from "@/lib/ticket-constants";
 import { STATUS_COLORS, STATUS_LABELS } from "@/lib/customer-constants";
 import { useCurrentEmployee } from "@/contexts/employee-context";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { authFetch, BASE } from "@/lib/api";
 
 interface DashboardStats {
   customers: {
@@ -67,7 +66,7 @@ interface DashboardStats {
 }
 
 async function fetchDashboardStats(): Promise<DashboardStats> {
-  const res = await fetch(`${BASE}/api/dashboard/stats`);
+  const res = await authFetch(`${BASE}/api/dashboard/stats`);
   if (!res.ok) throw new Error("Failed to fetch dashboard stats");
   return res.json();
 }

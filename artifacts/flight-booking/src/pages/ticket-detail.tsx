@@ -25,8 +25,7 @@ import {
   TICKET_STATUS_COLORS, TICKET_STATUS_LABELS, PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS,
   TICKET_STATUSES, PAYMENT_STATUSES, CURRENCIES, PAYMENT_METHODS, PAYMENT_METHOD_LABELS,
 } from "@/lib/ticket-constants";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { authFetch, BASE } from "@/lib/api";
 
 interface Ticket {
   id: number;
@@ -79,33 +78,30 @@ interface TicketDetail {
 }
 
 async function fetchTicketDetail(id: number): Promise<TicketDetail> {
-  const res = await fetch(`${BASE}/api/tickets/${id}`);
+  const res = await authFetch(`${BASE}/api/tickets/${id}`);
   if (!res.ok) throw new Error("Failed to fetch ticket");
   return res.json();
 }
 
 async function updateTicketStatus(id: number, ticketStatus: string): Promise<void> {
-  const res = await fetch(`${BASE}/api/tickets/${id}`, {
+  const res = await authFetch(`${BASE}/api/tickets/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ticketStatus }),
   });
   if (!res.ok) throw new Error("Failed to update status");
 }
 
 async function cancelTicket(id: number): Promise<void> {
-  const res = await fetch(`${BASE}/api/tickets/${id}`, {
+  const res = await authFetch(`${BASE}/api/tickets/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ticketStatus: "cancelled" }),
   });
   if (!res.ok) throw new Error("Failed to cancel ticket");
 }
 
 async function addPayment(ticketId: number, data: Record<string, unknown>): Promise<void> {
-  const res = await fetch(`${BASE}/api/payments`, {
+  const res = await authFetch(`${BASE}/api/payments`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...data, ticketId }),
   });
   const json = await res.json();

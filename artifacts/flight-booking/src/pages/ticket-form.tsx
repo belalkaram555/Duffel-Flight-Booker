@@ -19,8 +19,7 @@ import {
 } from "@/lib/ticket-constants";
 import { cn } from "@/lib/utils";
 import { useEmployee } from "@/contexts/employee-context";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { authFetch, BASE } from "@/lib/api";
 
 interface Customer {
   id: number;
@@ -72,21 +71,20 @@ function toLocalDatetimeInput(isoString: string | null): string {
 }
 
 async function fetchTicket(id: number): Promise<{ ticket: Ticket }> {
-  const res = await fetch(`${BASE}/api/tickets/${id}`);
+  const res = await authFetch(`${BASE}/api/tickets/${id}`);
   if (!res.ok) throw new Error("Failed to fetch ticket");
   return res.json();
 }
 
 async function fetchCustomers(): Promise<{ customers: Customer[] }> {
-  const res = await fetch(`${BASE}/api/customers`);
+  const res = await authFetch(`${BASE}/api/customers`);
   if (!res.ok) throw new Error("Failed to fetch customers");
   return res.json();
 }
 
 async function createTicket(data: Record<string, unknown>): Promise<{ ticket: Ticket }> {
-  const res = await fetch(`${BASE}/api/tickets`, {
+  const res = await authFetch(`${BASE}/api/tickets`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   const json = await res.json();
@@ -95,9 +93,8 @@ async function createTicket(data: Record<string, unknown>): Promise<{ ticket: Ti
 }
 
 async function updateTicket(id: number, data: Record<string, unknown>): Promise<{ ticket: Ticket }> {
-  const res = await fetch(`${BASE}/api/tickets/${id}`, {
+  const res = await authFetch(`${BASE}/api/tickets/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   const json = await res.json();

@@ -10,8 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { authFetch, BASE } from "@/lib/api";
 
 interface ImportRow {
   fullName: string;
@@ -163,7 +162,7 @@ export function ExcelImportDialog({ open, onClose, onSuccess }: Props) {
         bookingDate: r.bookingDate || undefined,
       }));
 
-      const res = await fetch(`${BASE}/api/customers/import`, {
+      const res = await authFetch(`${BASE}/api/customers/import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

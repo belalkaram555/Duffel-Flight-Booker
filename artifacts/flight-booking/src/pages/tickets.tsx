@@ -14,8 +14,7 @@ import {
   TICKET_STATUSES, PAYMENT_STATUSES,
 } from "@/lib/ticket-constants";
 import { useCurrentEmployee, useEmployee } from "@/contexts/employee-context";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { authFetch, BASE } from "@/lib/api";
 
 interface Ticket {
   id: number;
@@ -43,7 +42,7 @@ async function fetchTickets(employeeId?: number): Promise<{ tickets: Ticket[] }>
   const params = new URLSearchParams();
   if (employeeId) params.set("employeeId", String(employeeId));
   const url = `${BASE}/api/tickets${params.toString() ? `?${params}` : ""}`;
-  const res = await fetch(url);
+  const res = await authFetch(url);
   if (!res.ok) throw new Error("Failed to fetch tickets");
   return res.json();
 }

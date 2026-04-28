@@ -12,8 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/formatters";
 import { useCurrentEmployee, useEmployee } from "@/contexts/employee-context";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { authFetch, BASE } from "@/lib/api";
 
 interface FollowUpNote {
   id: number;
@@ -38,15 +37,14 @@ interface FollowUpsResponse {
 }
 
 async function fetchFollowUps(): Promise<FollowUpsResponse> {
-  const res = await fetch(`${BASE}/api/followups`);
+  const res = await authFetch(`${BASE}/api/followups`);
   if (!res.ok) throw new Error("Failed to fetch follow-ups");
   return res.json();
 }
 
 async function markNoteDone(id: number): Promise<void> {
-  const res = await fetch(`${BASE}/api/notes/${id}`, {
+  const res = await authFetch(`${BASE}/api/notes/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ followUpStatus: "done" }),
   });
   if (!res.ok) throw new Error("Failed to mark as done");
