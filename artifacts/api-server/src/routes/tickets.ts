@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { db, ticketsTable, ticketStatusHistoryTable, paymentsTable, customersTable, insertTicketSchema, updateTicketSchema, insertPaymentSchema } from "@workspace/db";
 
 const router = Router();
@@ -18,7 +18,12 @@ router.get("/tickets", async (req, res) => {
   try {
     const { customerId, ticketStatus, paymentStatus } = req.query as Record<string, string | undefined>;
 
-    let rows = await db
+    const conditions = [];
+    if (customerId) conditions.push(eq(ticketsTable.customerId, Number(customerId)));
+    if (ticketStatus) conditions.push(eq(ticketsTable.ticketStatus, ticketStatus as typeof ticketsTable.ticketStatus._.data));
+    if (paymentStatus) conditions.push(eq(ticketsTable.paymentStatus, paymentStatus as typeof ticketsTable.paymentStatus._.data));
+
+    const rows = await db
       .select({
         ticket: ticketsTable,
         customerName: customersTable.fullName,
@@ -26,17 +31,8 @@ router.get("/tickets", async (req, res) => {
       })
       .from(ticketsTable)
       .leftJoin(customersTable, eq(ticketsTable.customerId, customersTable.id))
+      .where(conditions.length > 0 ? and(...(conditions as [ReturnType<typeof eq>])) : undefined)
       .orderBy(desc(ticketsTable.createdAt));
-
-    if (customerId) {
-      rows = rows.filter((r) => r.ticket.customerId === Number(customerId));
-    }
-    if (ticketStatus) {
-      rows = rows.filter((r) => r.ticket.ticketStatus === ticketStatus);
-    }
-    if (paymentStatus) {
-      rows = rows.filter((r) => r.ticket.paymentStatus === paymentStatus);
-    }
 
     const tickets = rows.map((r) => ({
       ...r.ticket,

@@ -1,7 +1,7 @@
 import { pgTable, serial, text, integer, timestamp, numeric, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { ticketsTable } from "./tickets";
+import { ticketsTable, paymentStatusEnum } from "./tickets";
 import { customersTable } from "./customers";
 
 export const paymentMethodEnum = pgEnum("payment_method", [
@@ -21,7 +21,7 @@ export const paymentsTable = pgTable("payments", {
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   currency: text("currency").default("USD"),
   paymentMethod: paymentMethodEnum("payment_method").default("cash"),
-  paymentStatus: text("payment_status").default("paid"),
+  paymentStatus: paymentStatusEnum("payment_status").default("paid"),
   paymentDate: timestamp("payment_date").defaultNow(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

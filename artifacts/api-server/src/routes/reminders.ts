@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, gte, lt, desc, isNotNull } from "drizzle-orm";
+import { eq, and, gte, lt, desc, isNotNull, SQL } from "drizzle-orm";
 import { db, remindersTable, customerNotesTable, customersTable, insertReminderSchema, updateReminderSchema } from "@workspace/db";
 
 const router = Router();
@@ -18,7 +18,11 @@ router.get("/reminders", async (req, res) => {
   try {
     const { status, employeeId } = req.query as Record<string, string | undefined>;
 
-    let rows = await db
+    const conditions: SQL[] = [];
+    if (status) conditions.push(eq(remindersTable.status, status as "pending" | "done" | "missed"));
+    if (employeeId) conditions.push(eq(remindersTable.employeeId, Number(employeeId)));
+
+    const rows = await db
       .select({
         reminder: remindersTable,
         customerName: customersTable.fullName,
@@ -26,14 +30,8 @@ router.get("/reminders", async (req, res) => {
       })
       .from(remindersTable)
       .leftJoin(customersTable, eq(remindersTable.customerId, customersTable.id))
+      .where(conditions.length > 0 ? and(...(conditions as [SQL])) : undefined)
       .orderBy(desc(remindersTable.reminderDate));
-
-    if (status) {
-      rows = rows.filter((r) => r.reminder.status === status);
-    }
-    if (employeeId) {
-      rows = rows.filter((r) => r.reminder.employeeId === Number(employeeId));
-    }
 
     const reminders = rows.map((r) => ({
       ...r.reminder,
