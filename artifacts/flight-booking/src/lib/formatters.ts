@@ -1,5 +1,10 @@
-export function formatCurrency(amount: string | number, currency: string) {
+export function formatCurrency(amount: string | number | null | undefined, currency?: string | null) {
+  if (amount == null) return '—';
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(numericAmount)) return '—';
+  if (!currency) {
+    return numericAmount.toFixed(2);
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currency,
