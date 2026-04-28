@@ -349,19 +349,20 @@ export default function Customers() {
           {!isLoading && customers.length > 0 && (
             <>
               {/* Table header */}
-              <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] gap-4 px-6 py-2 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <div className="hidden md:grid grid-cols-[2fr_1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] gap-3 px-6 py-2 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 <span>Name</span>
                 <span>Phone / Email</span>
                 <span>Status</span>
                 <span>Source</span>
+                <span>Assigned Emp.</span>
                 <span>Last Contacted</span>
-                <span className="w-6" />
+                <span className="w-4" />
               </div>
 
               <div className="divide-y">
                 {customers.map((c) => (
                   <Link key={c.id} href={`/customers/${c.id}`}>
-                    <div className="grid md:grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] grid-cols-1 gap-2 md:gap-4 px-6 py-3.5 hover:bg-muted/30 transition-colors cursor-pointer group items-center">
+                    <div className="grid md:grid-cols-[2fr_1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] grid-cols-1 gap-2 md:gap-3 px-6 py-3.5 hover:bg-muted/30 transition-colors cursor-pointer group items-center">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
                           style={{ background: "linear-gradient(135deg, #d4af37 0%, #f5d76e 50%, #d4af37 100%)", color: "#022c22" }}>
@@ -369,9 +370,6 @@ export default function Customers() {
                         </div>
                         <div className="min-w-0">
                           <div className="font-semibold truncate group-hover:text-primary transition-colors text-sm">{c.fullName}</div>
-                          {c.assignedEmployeeId && (
-                            <div className="text-xs text-muted-foreground">Emp #{c.assignedEmployeeId}</div>
-                          )}
                         </div>
                       </div>
 
@@ -396,6 +394,10 @@ export default function Customers() {
 
                       <div className="hidden md:block text-sm text-muted-foreground">
                         {c.source ? (SOURCE_LABELS[c.source] ?? c.source) : "—"}
+                      </div>
+
+                      <div className="hidden md:block text-sm text-muted-foreground">
+                        {c.assignedEmployeeId ? `Emp #${c.assignedEmployeeId}` : "—"}
                       </div>
 
                       <div className="hidden md:block text-sm text-muted-foreground">
