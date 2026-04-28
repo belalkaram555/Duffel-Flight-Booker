@@ -15,16 +15,16 @@ declare global {
   }
 }
 
-export function getSessionFromRequest(req: Request): EmployeeSession | null {
+export async function getSessionFromRequest(req: Request): Promise<EmployeeSession | null> {
   const token = req.signedCookies?.[SESSION_COOKIE_NAME] as string | undefined | false;
   if (!token) return null;
-  const session = validateSession(token);
+  const session = await validateSession(token);
   if (!session) return null;
   return { employeeId: session.employeeId, name: session.name, role: session.role };
 }
 
-export const requireAuth: RequestHandler = (req, res, next) => {
-  const session = getSessionFromRequest(req);
+export const requireAuth: RequestHandler = async (req, res, next) => {
+  const session = await getSessionFromRequest(req);
   if (!session) {
     req.log?.warn({ ip: req.ip, route: req.path }, "security:unauthorized_access");
     res.status(401).json({ error: "unauthorized", message: "Authentication required" });
@@ -34,8 +34,8 @@ export const requireAuth: RequestHandler = (req, res, next) => {
   next();
 };
 
-export const requireAdmin: RequestHandler = (req, res, next) => {
-  const session = getSessionFromRequest(req);
+export const requireAdmin: RequestHandler = async (req, res, next) => {
+  const session = await getSessionFromRequest(req);
   if (!session) {
     req.log?.warn({ ip: req.ip, route: req.path }, "security:unauthorized_access");
     res.status(401).json({ error: "unauthorized", message: "Authentication required" });

@@ -57,8 +57,8 @@ router.post("/auth/login", async (req, res) => {
       return;
     }
 
-    const sessionToken = createSession(employee.id, employee.role, employee.name);
-    const csrfToken = getCsrfToken(sessionToken)!;
+    const sessionToken = await createSession(employee.id, employee.role, employee.name);
+    const csrfToken = (await getCsrfToken(sessionToken))!;
 
     res.cookie(SESSION_COOKIE_NAME, sessionToken, COOKIE_OPTIONS);
     res.cookie(CSRF_COOKIE_NAME, csrfToken, CSRF_COOKIE_OPTIONS);
@@ -81,10 +81,10 @@ router.post("/auth/login", async (req, res) => {
   }
 });
 
-router.post("/auth/logout", (req, res) => {
+router.post("/auth/logout", async (req, res) => {
   const token = req.signedCookies?.[SESSION_COOKIE_NAME] as string | undefined | false;
   if (token) {
-    deleteSession(token);
+    await deleteSession(token);
   }
   res.clearCookie(SESSION_COOKIE_NAME, { path: "/" });
   res.clearCookie(CSRF_COOKIE_NAME, { path: "/" });
@@ -113,7 +113,7 @@ router.get("/auth/me", requireAuth, async (req, res) => {
     }
 
     const sessionToken = req.signedCookies?.[SESSION_COOKIE_NAME] as string;
-    const csrfToken = getCsrfToken(sessionToken);
+    const csrfToken = await getCsrfToken(sessionToken);
     if (csrfToken) {
       res.cookie(CSRF_COOKIE_NAME, csrfToken, CSRF_COOKIE_OPTIONS);
     }

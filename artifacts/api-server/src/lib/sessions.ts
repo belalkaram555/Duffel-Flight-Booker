@@ -1,6 +1,8 @@
 import { randomBytes } from "crypto";
+import { eq, lt } from "drizzle-orm";
+import { db, sessionsTable } from "@workspace/db";
 
-interface Session {
+export interface Session {
   employeeId: number;
   name: string;
   role: string;
@@ -9,41 +11,41 @@ interface Session {
 }
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
-const store = new Map<string, Session>();
 
-function prune(): void {
-  const now = Date.now();
-  for (const [token, session] of store) {
-    if (session.expiresAt < now) store.delete(token);
-  }
+async function prune(): Promise<void> {
+  await db.delete(sessionsTable).where(lt(sessionsTable.expiresAt, Date.now()));
 }
 
-export function createSession(employeeId: number, role: string, name: string): string {
-  prune();
+export async function createSession(employeeId: number, role: string, name: string): Promise<string> {
   const token = randomBytes(32).toString("hex");
   const csrfToken = randomBytes(32).toString("hex");
-  store.set(token, { employeeId, name, role, expiresAt: Date.now() + SESSION_TTL_MS, csrfToken });
+  const expiresAt = Date.now() + SESSION_TTL_MS;
+
+  await db.insert(sessionsTable).values({ token, employeeId, name, role, csrfToken, expiresAt });
+
+  prune().catch(() => {});
+
   return token;
 }
 
-export function validateSession(token: string): Session | null {
-  const session = store.get(token);
-  if (!session) return null;
-  if (session.expiresAt < Date.now()) {
-    store.delete(token);
+export async function validateSession(token: string): Promise<Session | null> {
+  const [row] = await db.select().from(sessionsTable).where(eq(sessionsTable.token, token));
+  if (!row) return null;
+  if (row.expiresAt < Date.now()) {
+    await db.delete(sessionsTable).where(eq(sessionsTable.token, token));
     return null;
   }
-  return session;
+  return { employeeId: row.employeeId, name: row.name, role: row.role, expiresAt: row.expiresAt, csrfToken: row.csrfToken };
 }
 
-export function getCsrfToken(sessionToken: string): string | null {
-  const session = store.get(sessionToken);
-  if (!session || session.expiresAt < Date.now()) return null;
-  return session.csrfToken;
+export async function getCsrfToken(sessionToken: string): Promise<string | null> {
+  const [row] = await db.select().from(sessionsTable).where(eq(sessionsTable.token, sessionToken));
+  if (!row || row.expiresAt < Date.now()) return null;
+  return row.csrfToken;
 }
 
-export function deleteSession(token: string): void {
-  store.delete(token);
+export async function deleteSession(token: string): Promise<void> {
+  await db.delete(sessionsTable).where(eq(sessionsTable.token, token));
 }
 
 export const SESSION_COOKIE_NAME = "aeroops_sid";

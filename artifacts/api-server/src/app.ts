@@ -119,7 +119,7 @@ app.use("/api", generalLimiter);
 
 const CSRF_EXEMPT = new Set(["/api/auth/login"]);
 
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
     return next();
   }
@@ -130,7 +130,7 @@ app.use((req, res, next) => {
   if (!sessionToken) {
     return next();
   }
-  const expectedCsrf = getCsrfToken(sessionToken);
+  const expectedCsrf = await getCsrfToken(sessionToken);
   if (!expectedCsrf) {
     return next();
   }

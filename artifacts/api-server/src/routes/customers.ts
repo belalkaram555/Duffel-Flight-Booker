@@ -131,7 +131,7 @@ router.post("/customers/import", requireAuth, async (req, res) => {
     return;
   }
 
-  const session = getSessionFromRequest(req);
+  const session = await getSessionFromRequest(req);
   const importerEmployeeId = session?.employeeId ?? null;
 
   const results: Array<{ customerName: string; success: boolean; error?: string }> = [];

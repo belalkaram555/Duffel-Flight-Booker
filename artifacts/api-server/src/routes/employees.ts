@@ -43,7 +43,7 @@ router.get("/employees", async (req, res) => {
     const { includeInactive } = req.query as Record<string, string | undefined>;
 
     if (includeInactive === "true") {
-      const session = getSessionFromRequest(req);
+      const session = await getSessionFromRequest(req);
       if (!session) {
         res.status(401).json({ error: "unauthorized", message: "Authentication required" });
         return;
