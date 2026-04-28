@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq, desc, and, sum } from "drizzle-orm";
 import { db, ticketsTable, ticketStatusHistoryTable, paymentsTable, customersTable, insertTicketSchema, updateTicketSchema, insertPaymentSchema } from "@workspace/db";
-import { requireAuth } from "../middlewares/auth.js";
+import { requireAuth, requireAdmin } from "../middlewares/auth.js";
 
 const router = Router();
 
@@ -166,7 +166,7 @@ router.put("/tickets/:id", requireAuth, async (req, res) => {
   }
 });
 
-router.delete("/tickets/:id", requireAuth, async (req, res) => {
+router.delete("/tickets/:id", requireAdmin, async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: "validation_error", message: "Invalid ticket ID" });
