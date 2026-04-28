@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceInputButton } from "@/components/voice-input-button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -218,7 +219,13 @@ function AddNoteForm({
   return (
     <form onSubmit={handleSubmit} className="border rounded-lg p-4 space-y-3 bg-muted/20">
       <div className="space-y-1.5">
-        <Label>Note *</Label>
+        <div className="flex items-center justify-between">
+          <Label>Note *</Label>
+          <VoiceInputButton
+            onTranscript={(t) => { setNoteText((prev) => prev ? prev + " " + t : t); if (noteError) setNoteError(""); }}
+            title="Dictate note"
+          />
+        </div>
         <Textarea
           value={noteText}
           onChange={(e) => { setNoteText(e.target.value); if (noteError) setNoteError(""); }}

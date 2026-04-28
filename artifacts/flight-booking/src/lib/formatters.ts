@@ -60,6 +60,7 @@ export function formatDateTime(isoString: string) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -68,8 +69,8 @@ export function formatDateTime(isoString: string) {
 
 export function formatDate(isoString: string) {
   return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "2-digit",
+    day: "numeric",
+    month: "short",
     year: "numeric",
   }).format(new Date(isoString));
 }

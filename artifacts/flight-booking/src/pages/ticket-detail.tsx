@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceInputButton } from "@/components/voice-input-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -226,7 +227,13 @@ function AddPaymentDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Notes (optional)</Label>
+            <div className="flex items-center justify-between">
+              <Label>Notes (optional)</Label>
+              <VoiceInputButton
+                onTranscript={(t) => setNotes((prev) => prev ? prev + " " + t : t)}
+                title="Dictate note"
+              />
+            </div>
             <Textarea
               rows={2}
               placeholder="Any notes about this payment..."
