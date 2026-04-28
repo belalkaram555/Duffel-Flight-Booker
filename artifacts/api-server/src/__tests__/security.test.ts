@@ -355,6 +355,131 @@ describe("GET /api/auth/employees", () => {
   });
 });
 
+describe("CSRF protection", () => {
+  it("returns 403 on POST with a session but no x-csrf-token header", async () => {
+    sessionMocks.validateSessionImpl.mockResolvedValue({
+      employeeId: ADMIN_EMPLOYEE.id,
+      name: ADMIN_EMPLOYEE.name,
+      role: ADMIN_EMPLOYEE.role,
+      expiresAt: Date.now() + 60_000,
+      csrfToken: "mock-csrf-token",
+    });
+    sessionMocks.getCsrfTokenImpl.mockResolvedValue("mock-csrf-token");
+
+    const res = await request(app)
+      .post("/api/auth/logout")
+      .set("Cookie", cookieHeader(SESSION_COOKIE_NAME, "valid-session-token"));
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("csrf_error");
+  });
+
+  it("returns 403 on POST with a session and a wrong x-csrf-token", async () => {
+    sessionMocks.validateSessionImpl.mockResolvedValue({
+      employeeId: ADMIN_EMPLOYEE.id,
+      name: ADMIN_EMPLOYEE.name,
+      role: ADMIN_EMPLOYEE.role,
+      expiresAt: Date.now() + 60_000,
+      csrfToken: "mock-csrf-token",
+    });
+    sessionMocks.getCsrfTokenImpl.mockResolvedValue("mock-csrf-token");
+
+    const res = await request(app)
+      .post("/api/auth/logout")
+      .set("Cookie", cookieHeader(SESSION_COOKIE_NAME, "valid-session-token"))
+      .set("x-csrf-token", "wrong-token");
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("csrf_error");
+  });
+
+  it("passes CSRF check and returns 200 on POST with a session and correct x-csrf-token", async () => {
+    sessionMocks.validateSessionImpl.mockResolvedValue({
+      employeeId: ADMIN_EMPLOYEE.id,
+      name: ADMIN_EMPLOYEE.name,
+      role: ADMIN_EMPLOYEE.role,
+      expiresAt: Date.now() + 60_000,
+      csrfToken: "mock-csrf-token",
+    });
+    sessionMocks.getCsrfTokenImpl.mockResolvedValue("mock-csrf-token");
+
+    const res = await request(app)
+      .post("/api/auth/logout")
+      .set("Cookie", cookieHeader(SESSION_COOKIE_NAME, "valid-session-token"))
+      .set("x-csrf-token", "mock-csrf-token");
+
+    expect(res.status).toBe(200);
+  });
+
+  it("returns 403 on PUT with a session but no x-csrf-token header", async () => {
+    sessionMocks.getCsrfTokenImpl.mockResolvedValue("mock-csrf-token");
+
+    const res = await request(app)
+      .put("/api/employees/1")
+      .set("Cookie", cookieHeader(SESSION_COOKIE_NAME, "valid-session-token"))
+      .send({ name: "Updated" });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("csrf_error");
+  });
+
+  it("returns 403 on PATCH with a session but no x-csrf-token header", async () => {
+    sessionMocks.getCsrfTokenImpl.mockResolvedValue("mock-csrf-token");
+
+    const res = await request(app)
+      .patch("/api/employees/1/deactivate")
+      .set("Cookie", cookieHeader(SESSION_COOKIE_NAME, "valid-session-token"));
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("csrf_error");
+  });
+
+  it("returns 403 on DELETE with a session but no x-csrf-token header", async () => {
+    sessionMocks.getCsrfTokenImpl.mockResolvedValue("mock-csrf-token");
+
+    const res = await request(app)
+      .delete("/api/employees/1")
+      .set("Cookie", cookieHeader(SESSION_COOKIE_NAME, "valid-session-token"));
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("csrf_error");
+  });
+
+  it("does NOT enforce CSRF on POST /api/auth/login (exempt route)", async () => {
+    const uniqueUsername = `csrf-exempt-test-${Date.now()}`;
+    dbMocks.selectRows = [{ ...ADMIN_EMPLOYEE, username: uniqueUsername }];
+    vi.mocked(bcrypt.default.compare).mockResolvedValue(true as never);
+
+    const res = await request(app)
+      .post("/api/auth/login")
+      .set("X-Forwarded-For", "10.1.2.3")
+      .send({ username: uniqueUsername, pin: "1234" });
+
+    expect(res.status).not.toBe(403);
+    expect(res.body.error).not.toBe("csrf_error");
+  });
+});
+
+describe("requireAuth middleware", () => {
+  it("returns 401 on GET /api/auth/me with no session cookie", async () => {
+    const res = await request(app).get("/api/auth/me");
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe("unauthorized");
+  });
+
+  it("returns 401 on GET /api/auth/me with an expired/invalid session", async () => {
+    sessionMocks.validateSessionImpl.mockResolvedValue(null);
+
+    const res = await request(app)
+      .get("/api/auth/me")
+      .set("Cookie", cookieHeader(SESSION_COOKIE_NAME, "expired-or-invalid-token"));
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe("unauthorized");
+  });
+});
+
 describe("Admin-only endpoints", () => {
   it("returns 401 on POST /api/employees with no session", async () => {
     const res = await request(app)
