@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Users, Plus, Search, ChevronRight, Phone, Mail } from "lucide-react";
+import { Users, Plus, Search, ChevronRight, Phone, Mail, UserCheck } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatShortDate } from "@/lib/formatters";
 import { CustomerForm, EMPTY_CUSTOMER_FORM } from "@/components/customer-form";
 import { STATUS_COLORS, STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES } from "@/lib/customer-constants";
+import { useEmployee, EMPLOYEES } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -34,8 +35,11 @@ interface Customer {
 }
 
 
-async function fetchCustomers(): Promise<{ customers: Customer[] }> {
-  const res = await fetch(`${BASE}/api/customers`);
+async function fetchCustomers(assignedEmployeeId?: number): Promise<{ customers: Customer[] }> {
+  const params = new URLSearchParams();
+  if (assignedEmployeeId) params.set("assignedEmployeeId", String(assignedEmployeeId));
+  const url = `${BASE}/api/customers${params.toString() ? `?${params}` : ""}`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to fetch customers");
   return res.json();
 }
@@ -97,11 +101,20 @@ export function CustomerFormSheet({
 export default function Customers() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [employeeFilter, setEmployeeFilter] = useState("all");
+  const [myCustomers, setMyCustomers] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const { currentEmployee } = useEmployee();
+
+  const activeEmployeeId = myCustomers
+    ? currentEmployee.id
+    : employeeFilter !== "all"
+    ? Number(employeeFilter)
+    : undefined;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["customers"],
-    queryFn: fetchCustomers,
+    queryKey: ["customers", activeEmployeeId],
+    queryFn: () => fetchCustomers(activeEmployeeId),
     staleTime: 30_000,
   });
 
@@ -118,6 +131,20 @@ export default function Customers() {
     return matchesSearch && matchesStatus;
   });
 
+  function toggleMyCustomers() {
+    setMyCustomers((v) => {
+      if (!v) setEmployeeFilter("all");
+      return !v;
+    });
+  }
+
+  function handleEmployeeFilter(val: string) {
+    setEmployeeFilter(val);
+    if (val !== "all") setMyCustomers(false);
+  }
+
+  const selectValue = myCustomers ? String(currentEmployee.id) : employeeFilter;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -132,8 +159,8 @@ export default function Customers() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 className="pl-9"
@@ -153,6 +180,26 @@ export default function Customers() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={selectValue} onValueChange={handleEmployeeFilter}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder="All agents" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All agents</SelectItem>
+                {EMPLOYEES.map((e) => (
+                  <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant={myCustomers ? "default" : "outline"}
+              size="sm"
+              className="h-10 gap-1.5 whitespace-nowrap"
+              onClick={toggleMyCustomers}
+            >
+              <UserCheck className="h-4 w-4" />
+              My Customers
+            </Button>
           </div>
         </CardHeader>
 
@@ -179,20 +226,21 @@ export default function Customers() {
               <Users className="h-12 w-12 text-muted-foreground/30 mb-4" />
               <p className="text-muted-foreground font-medium">No customers found</p>
               <p className="text-sm text-muted-foreground/70 mt-1">
-                {search || statusFilter !== "all" ? "Try adjusting your search or filters." : "Add your first customer to get started."}
+                {search || statusFilter !== "all" || myCustomers || employeeFilter !== "all"
+                  ? "Try adjusting your search or filters."
+                  : "Add your first customer to get started."}
               </p>
             </div>
           )}
 
           {!isLoading && customers.length > 0 && (
             <>
-              {/* Table header */}
-              <div className="hidden md:grid grid-cols-[2fr_1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] gap-3 px-6 py-2 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <div className="hidden md:grid grid-cols-[2fr_1.5fr_0.8fr_0.8fr_1fr_0.8fr_auto] gap-3 px-6 py-2 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 <span>Name</span>
                 <span>Phone / Email</span>
                 <span>Status</span>
                 <span>Source</span>
-                <span>Assigned Emp.</span>
+                <span>Assigned Agent</span>
                 <span>Last Contacted</span>
                 <span className="w-4" />
               </div>
@@ -200,7 +248,7 @@ export default function Customers() {
               <div className="divide-y">
                 {customers.map((c) => (
                   <Link key={c.id} href={`/customers/${c.id}`}>
-                    <div className="grid md:grid-cols-[2fr_1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] grid-cols-1 gap-2 md:gap-3 px-6 py-3.5 hover:bg-muted/30 transition-colors cursor-pointer group items-center">
+                    <div className="grid md:grid-cols-[2fr_1.5fr_0.8fr_0.8fr_1fr_0.8fr_auto] grid-cols-1 gap-2 md:gap-3 px-6 py-3.5 hover:bg-muted/30 transition-colors cursor-pointer group items-center">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
                           style={{ background: "linear-gradient(135deg, #d4af37 0%, #f5d76e 50%, #d4af37 100%)", color: "#022c22" }}>
@@ -235,7 +283,9 @@ export default function Customers() {
                       </div>
 
                       <div className="hidden md:block text-sm text-muted-foreground">
-                        {c.assignedEmployeeId ? `Emp #${c.assignedEmployeeId}` : "—"}
+                        {c.assignedEmployeeId
+                          ? (EMPLOYEES.find((e) => e.id === c.assignedEmployeeId)?.name ?? `#${c.assignedEmployeeId}`)
+                          : "—"}
                       </div>
 
                       <div className="hidden md:block text-sm text-muted-foreground">
@@ -250,8 +300,12 @@ export default function Customers() {
                 ))}
               </div>
 
-              <div className="px-6 py-3 border-t text-xs text-muted-foreground">
-                {customers.length} customer{customers.length !== 1 ? "s" : ""}
+              <div className="px-6 py-3 border-t text-xs text-muted-foreground flex items-center gap-3">
+                <span>{customers.length} customer{customers.length !== 1 ? "s" : ""}</span>
+                {customers.length !== allCustomers.length && (
+                  <span className="text-muted-foreground/70">(filtered from {allCustomers.length})</span>
+                )}
+                {myCustomers && <span className="font-medium text-primary">· My Customers only</span>}
               </div>
             </>
           )}

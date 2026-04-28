@@ -16,12 +16,13 @@ function coerceDates(body: Record<string, unknown>, ...fields: string[]) {
 
 router.get("/tickets", async (req, res) => {
   try {
-    const { customerId, ticketStatus, paymentStatus } = req.query as Record<string, string | undefined>;
+    const { customerId, ticketStatus, paymentStatus, employeeId } = req.query as Record<string, string | undefined>;
 
     const conditions = [];
     if (customerId) conditions.push(eq(ticketsTable.customerId, Number(customerId)));
     if (ticketStatus) conditions.push(eq(ticketsTable.ticketStatus, ticketStatus as typeof ticketsTable.ticketStatus._.data));
     if (paymentStatus) conditions.push(eq(ticketsTable.paymentStatus, paymentStatus as typeof ticketsTable.paymentStatus._.data));
+    if (employeeId) conditions.push(eq(ticketsTable.employeeId, Number(employeeId)));
 
     const rows = await db
       .select({

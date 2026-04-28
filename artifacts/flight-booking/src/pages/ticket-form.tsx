@@ -18,6 +18,7 @@ import {
   TICKET_STATUSES, PAYMENT_STATUSES, CURRENCIES,
 } from "@/lib/ticket-constants";
 import { cn } from "@/lib/utils";
+import { EMPLOYEES } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -47,6 +48,7 @@ interface Ticket {
 
 const EMPTY_FORM = {
   customerId: "",
+  employeeId: "",
   flightRoute: "",
   airline: "",
   flightNumber: "",
@@ -135,6 +137,7 @@ export default function TicketForm() {
       const t = ticketData.ticket;
       setForm({
         customerId: String(t.customerId),
+        employeeId: t.employeeId ? String(t.employeeId) : "",
         flightRoute: t.flightRoute ?? "",
         airline: t.airline ?? "",
         flightNumber: t.flightNumber ?? "",
@@ -169,6 +172,7 @@ export default function TicketForm() {
   function buildPayload() {
     const payload: Record<string, unknown> = {};
     if (form.customerId) payload.customerId = Number(form.customerId);
+    payload.employeeId = form.employeeId ? Number(form.employeeId) : null;
     if (form.flightRoute) payload.flightRoute = form.flightRoute;
     else payload.flightRoute = null;
     if (form.airline) payload.airline = form.airline;
@@ -295,6 +299,21 @@ export default function TicketForm() {
                 </PopoverContent>
               </Popover>
               {errors.customerId && <p className="text-xs text-destructive">{errors.customerId}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Assigned Agent</Label>
+              <Select value={form.employeeId || "unassigned"} onValueChange={(v) => setField("employeeId", v === "unassigned" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {EMPLOYEES.map((e) => (
+                    <SelectItem key={e.id} value={String(e.id)}>{e.name} — {e.role}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

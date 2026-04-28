@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCircle2, Clock, AlertCircle, Calendar, ChevronRight, Filter } from "lucide-react";
+import { Bell, CheckCircle2, Clock, AlertCircle, Calendar, ChevronRight, Filter, UserCheck } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/formatters";
+import { useEmployee, EMPLOYEES } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -64,6 +66,10 @@ function NoteItem({ note, showMarkDone }: { note: FollowUpNote; showMarkDone?: b
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const agentName = note.employeeId
+    ? (EMPLOYEES.find((e) => e.id === note.employeeId)?.name ?? `#${note.employeeId}`)
+    : null;
+
   return (
     <div className="border rounded-lg p-3 bg-card flex items-start justify-between gap-3">
       <div className="flex-1 min-w-0">
@@ -80,7 +86,7 @@ function NoteItem({ note, showMarkDone }: { note: FollowUpNote; showMarkDone?: b
               <span className="hover:underline cursor-pointer">Ticket #{note.ticketId}</span>
             </Link>
           )}
-          {note.employeeId && <span>Employee #{note.employeeId}</span>}
+          {agentName && <span className="flex items-center gap-1"><UserCheck className="h-3 w-3" />{agentName}</span>}
         </div>
       </div>
       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
@@ -188,6 +194,8 @@ export default function Reminders() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [myReminders, setMyReminders] = useState(false);
+  const { currentEmployee } = useEmployee();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["followups"],
@@ -195,18 +203,32 @@ export default function Reminders() {
     staleTime: 30_000,
   });
 
+  const effectiveEmployeeFilter = myReminders ? String(currentEmployee.id) : employeeFilter;
+
   const filtered = useMemo(() => {
     if (!data) return null;
-    const filter = (list: FollowUpNote[]) => applyFilters(list, employeeFilter, startDate, endDate);
+    const filter = (list: FollowUpNote[]) => applyFilters(list, effectiveEmployeeFilter, startDate, endDate);
     return {
       today: filter(data.today),
       upcoming: filter(data.upcoming),
       missed: filter(data.missed),
       done: filter(data.done),
     };
-  }, [data, employeeFilter, startDate, endDate]);
+  }, [data, effectiveEmployeeFilter, startDate, endDate]);
 
-  const hasFilters = !!(employeeFilter || startDate || endDate);
+  const hasFilters = !!(employeeFilter || startDate || endDate || myReminders);
+
+  function toggleMyReminders() {
+    setMyReminders((v) => {
+      if (!v) setEmployeeFilter("");
+      return !v;
+    });
+  }
+
+  function handleEmployeeFilterChange(val: string) {
+    setEmployeeFilter(val === "all" ? "" : val);
+    if (val !== "all") setMyReminders(false);
+  }
 
   return (
     <div className="space-y-6">
@@ -217,14 +239,25 @@ export default function Reminders() {
             Track and action all customer follow-up notes, grouped by customer.
           </p>
         </div>
-        <Button
-          variant={hasFilters ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowFilters((v) => !v)}
-        >
-          <Filter className="h-4 w-4 mr-1.5" />
-          Filters {hasFilters ? `(active)` : ""}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={myReminders ? "default" : "outline"}
+            size="sm"
+            onClick={toggleMyReminders}
+            className="gap-1.5"
+          >
+            <UserCheck className="h-4 w-4" />
+            My Reminders
+          </Button>
+          <Button
+            variant={hasFilters && !myReminders ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowFilters((v) => !v)}
+          >
+            <Filter className="h-4 w-4 mr-1.5" />
+            Filters {hasFilters && !myReminders ? "(active)" : ""}
+          </Button>
+        </div>
       </div>
 
       {showFilters && (
@@ -232,14 +265,19 @@ export default function Reminders() {
           <CardContent className="p-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label>Employee ID</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  placeholder="Filter by employee #"
-                  value={employeeFilter}
-                  onChange={(e) => setEmployeeFilter(e.target.value)}
-                />
+                <Label>Agent</Label>
+                <Select
+                  value={employeeFilter || "all"}
+                  onValueChange={handleEmployeeFilterChange}
+                >
+                  <SelectTrigger><SelectValue placeholder="All agents" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All agents</SelectItem>
+                    {EMPLOYEES.map((e) => (
+                      <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>From Date</Label>
@@ -258,7 +296,7 @@ export default function Reminders() {
                 />
               </div>
             </div>
-            {hasFilters && (
+            {(employeeFilter || startDate || endDate) && (
               <Button
                 variant="ghost"
                 size="sm"

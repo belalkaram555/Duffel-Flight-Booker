@@ -7,10 +7,11 @@ import { Link, useLocation } from "wouter";
 import { formatCurrency, formatShortDate, formatDateTime } from "@/lib/formatters";
 import {
   Users, Tag, TrendingUp, Plane, CheckCircle2, XCircle, AlertCircle,
-  Bell, Clock, ChevronRight, CreditCard,
+  Bell, Clock, ChevronRight, CreditCard, UserCheck,
 } from "lucide-react";
 import { TICKET_STATUS_COLORS, TICKET_STATUS_LABELS, PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS } from "@/lib/ticket-constants";
 import { STATUS_COLORS, STATUS_LABELS } from "@/lib/customer-constants";
+import { useEmployee } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -61,6 +62,7 @@ interface DashboardStats {
     note: string;
     followUpDate: string | null;
     followUpStatus: string | null;
+    employeeId: number | null;
   }>;
 }
 
@@ -115,6 +117,8 @@ function SectionSkeleton() {
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
+  const { currentEmployee } = useEmployee();
+
   const { data: crmData, isLoading: crmLoading, isError: crmError } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: fetchDashboardStats,
@@ -122,6 +126,10 @@ export default function Dashboard() {
   });
 
   const { data: flightStats, isLoading: flightLoading, isError: flightError } = useGetStatsSummary();
+
+  const myFollowUpsToday = crmData?.todayFollowUps.filter(
+    (f) => f.employeeId === currentEmployee.id
+  ) ?? [];
 
   return (
     <div className="space-y-10">
@@ -156,6 +164,59 @@ export default function Dashboard() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="lg:col-span-1">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-primary" />
+                    My Follow-ups Today
+                    <span className="ml-auto text-xs font-normal text-muted-foreground">{currentEmployee.name}</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {myFollowUpsToday.length === 0 ? (
+                    <p className="text-sm text-muted-foreground px-6 pb-4">No follow-ups assigned to you today.</p>
+                  ) : (
+                    <>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Customer</TableHead>
+                            <TableHead>Note</TableHead>
+                            <TableHead className="text-right">Time</TableHead>
+                            <TableHead></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {myFollowUpsToday.map((f) => (
+                            <TableRow key={f.id}>
+                              <TableCell className="text-sm font-medium truncate max-w-[80px]">
+                                {f.customerName ?? "Unknown"}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground line-clamp-1 max-w-[100px]">{f.note}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground text-right whitespace-nowrap">
+                                {f.followUpDate ? formatDateTime(f.followUpDate).split(",")[1]?.trim() ?? "" : "—"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {f.customerId ? (
+                                  <Link href={`/customers/${f.customerId}`}>
+                                    <span className="text-xs text-primary hover:underline flex items-center justify-end gap-0.5 cursor-pointer">
+                                      View <ChevronRight className="h-3 w-3" />
+                                    </span>
+                                  </Link>
+                                ) : null}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <div className="px-6 py-2 border-t">
+                        <Link href="/reminders" className="text-xs text-primary hover:underline">View all reminders →</Link>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
               <Card className="lg:col-span-1">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -247,48 +308,54 @@ export default function Dashboard() {
                   )}
                 </CardContent>
               </Card>
-
-              <Card className="lg:col-span-1">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-muted-foreground" /> Recent Tickets
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {crmData.recentTickets.length === 0 ? (
-                    <p className="text-sm text-muted-foreground px-6 pb-4">No tickets yet.</p>
-                  ) : (
-                    <>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Customer</TableHead>
-                            <TableHead>Route</TableHead>
-                            <TableHead>Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {crmData.recentTickets.map((t) => (
-                            <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/tickets/${t.id}`)}>
-                              <TableCell className="font-medium text-sm truncate max-w-[110px]">{t.customerName ?? `#${t.id}`}</TableCell>
-                              <TableCell className="text-xs text-muted-foreground">{t.flightRoute ?? "—"}</TableCell>
-                              <TableCell>
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${TICKET_STATUS_COLORS[t.ticketStatus] ?? ""}`}>
-                                  {TICKET_STATUS_LABELS[t.ticketStatus] ?? t.ticketStatus}
-                                </span>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                      <div className="px-6 py-2 border-t">
-                        <Link href="/tickets" className="text-xs text-primary hover:underline">View all tickets →</Link>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
             </div>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Tag className="h-4 w-4 text-muted-foreground" /> Recent Tickets
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {crmData.recentTickets.length === 0 ? (
+                  <p className="text-sm text-muted-foreground px-6 pb-4">No tickets yet.</p>
+                ) : (
+                  <>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Route</TableHead>
+                          <TableHead>Ticket Status</TableHead>
+                          <TableHead>Payment</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {crmData.recentTickets.map((t) => (
+                          <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/tickets/${t.id}`)}>
+                            <TableCell className="font-medium text-sm truncate max-w-[110px]">{t.customerName ?? `#${t.id}`}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{t.flightRoute ?? "—"}</TableCell>
+                            <TableCell>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${TICKET_STATUS_COLORS[t.ticketStatus] ?? ""}`}>
+                                {TICKET_STATUS_LABELS[t.ticketStatus] ?? t.ticketStatus}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${PAYMENT_STATUS_COLORS[t.paymentStatus] ?? ""}`}>
+                                {PAYMENT_STATUS_LABELS[t.paymentStatus] ?? t.paymentStatus}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    <div className="px-6 py-2 border-t">
+                      <Link href="/tickets" className="text-xs text-primary hover:underline">View all tickets →</Link>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </>
         )}
       </section>

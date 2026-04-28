@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SheetFooter } from "@/components/ui/sheet";
 import { STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES, CUSTOMER_SOURCES } from "@/lib/customer-constants";
+import { EMPLOYEES } from "@/contexts/employee-context";
 
 export interface CustomerFormData {
   fullName: string;
@@ -144,15 +145,16 @@ export function CustomerForm({ initialValues, submitLabel, isPending, onSubmit, 
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cf-assignedEmployeeId">Assigned Employee ID</Label>
-        <Input
-          id="cf-assignedEmployeeId"
-          type="number"
-          min={1}
-          value={form.assignedEmployeeId}
-          onChange={(e) => set("assignedEmployeeId", e.target.value)}
-          placeholder="Employee ID (optional)"
-        />
+        <Label>Assigned Agent</Label>
+        <Select value={form.assignedEmployeeId || "unassigned"} onValueChange={(v) => set("assignedEmployeeId", v === "unassigned" ? "" : v)}>
+          <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {EMPLOYEES.map((e) => (
+              <SelectItem key={e.id} value={String(e.id)}>{e.name} — {e.role}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <SheetFooter className="pt-2">

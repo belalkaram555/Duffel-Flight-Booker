@@ -1,14 +1,12 @@
 import { Router } from "express";
-import { eq, ilike, or, sql } from "drizzle-orm";
+import { eq, ilike, or, sql, and } from "drizzle-orm";
 import { db, customersTable, ticketsTable, insertCustomerSchema, updateCustomerSchema } from "@workspace/db";
 
 const router = Router();
 
 router.get("/customers", async (req, res) => {
   try {
-    const { search, status } = req.query as Record<string, string | undefined>;
-
-    let query = db.select().from(customersTable);
+    const { search, status, assignedEmployeeId } = req.query as Record<string, string | undefined>;
 
     const conditions = [];
     if (search) {
@@ -23,10 +21,13 @@ router.get("/customers", async (req, res) => {
     if (status) {
       conditions.push(eq(customersTable.status, status as typeof customersTable.status._.data));
     }
+    if (assignedEmployeeId) {
+      conditions.push(eq(customersTable.assignedEmployeeId, Number(assignedEmployeeId)));
+    }
 
     const customers = conditions.length
-      ? await query.where(conditions.length === 1 ? conditions[0]! : sql`${conditions[0]} AND ${conditions[1]}`)
-      : await query.orderBy(sql`${customersTable.createdAt} desc`);
+      ? await db.select().from(customersTable).where(conditions.length === 1 ? conditions[0]! : and(...(conditions as [ReturnType<typeof eq>]))).orderBy(sql`${customersTable.createdAt} desc`)
+      : await db.select().from(customersTable).orderBy(sql`${customersTable.createdAt} desc`);
 
     res.json({ customers });
   } catch (err) {
