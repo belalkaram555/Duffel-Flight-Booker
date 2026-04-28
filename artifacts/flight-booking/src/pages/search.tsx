@@ -376,89 +376,97 @@ export default function Search() {
           ) : (
             <div className="grid gap-3">
               {filteredOffers.map((offer) => {
-                const slice = offer.slices?.[0];
-                const segments = slice?.segments || [];
-                const first = segments[0];
-                const last = segments[segments.length - 1];
-
-                const depTime = first?.departureDateTime
-                  ? new Date(first.departureDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
-                  : "--:--";
-                const arrTime = last?.arrivalDateTime
-                  ? new Date(last.arrivalDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
-                  : "--:--";
-                const depDate = first?.departureDateTime ? formatShortDate(first.departureDateTime) : "";
-
-                const allBaggages = segments.flatMap((s) => s.baggages ?? []);
+                const isRoundTrip = (offer.slices?.length ?? 0) > 1;
+                const firstSlice = offer.slices?.[0];
+                const allBaggages = (firstSlice?.segments ?? []).flatMap((s) => s.baggages ?? []);
                 const checkedBag = allBaggages.find((b) => b.type === "checked");
                 const carryOn = allBaggages.find((b) => b.type === "carry_on");
-                const stopCount = segments.length - 1;
-
                 const airlineCode = offer.owner?.iataCode ?? "";
                 const airlineWebsite = airlineCode ? getAirlineWebsite(airlineCode) : null;
+
+                const renderSliceRow = (slice: NonNullable<typeof offer.slices>[0], label?: string) => {
+                  const segs = slice?.segments ?? [];
+                  const first = segs[0];
+                  const last = segs[segs.length - 1];
+                  const depTime = first?.departureDateTime
+                    ? new Date(first.departureDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
+                    : "--:--";
+                  const arrTime = last?.arrivalDateTime
+                    ? new Date(last.arrivalDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
+                    : "--:--";
+                  const depDate = first?.departureDateTime ? formatShortDate(first.departureDateTime) : "";
+                  const arrDate = last?.arrivalDateTime ? formatShortDate(last.arrivalDateTime) : "";
+                  const stops = segs.length - 1;
+                  return (
+                    <div className="flex flex-col gap-1">
+                      {label && (
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+                      )}
+                      <div className="grid grid-cols-3 gap-2 text-center items-center">
+                        <div>
+                          <div className="text-lg md:text-xl font-bold tabular-nums">{depTime}</div>
+                          <div className="text-sm font-semibold text-primary">{slice?.origin?.iataCode}</div>
+                          <div className="text-xs text-muted-foreground">{depDate}</div>
+                        </div>
+                        <div className="flex flex-col items-center px-1">
+                          <div className="text-xs text-muted-foreground mb-1">{slice?.duration ? formatDuration(slice.duration) : ""}</div>
+                          <div className="w-full flex items-center">
+                            <div className="h-px bg-border flex-1" />
+                            <Plane className="h-3 w-3 text-muted-foreground mx-1 flex-shrink-0" />
+                            <div className="h-px bg-border flex-1" />
+                          </div>
+                          <div className={`text-xs mt-1 font-medium ${stops === 0 ? "text-green-600" : "text-amber-600"}`}>
+                            {stops === 0 ? "Non-stop" : `${stops} stop${stops > 1 ? "s" : ""}`}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-lg md:text-xl font-bold tabular-nums">{arrTime}</div>
+                          <div className="text-sm font-semibold text-primary">{slice?.destination?.iataCode}</div>
+                          <div className="text-xs text-muted-foreground">{arrDate}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                };
 
                 return (
                   <Card key={offer.id} className="hover:border-primary/50 transition-colors">
                     <CardContent className="p-4 md:p-5">
                       <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
 
-                        {/* Airline + Route */}
-                        <div className="flex items-center gap-4 flex-1 min-w-0">
-                          {/* Airline logo + name + website */}
-                          <div className="flex flex-col items-center gap-1 flex-shrink-0 w-16">
-                            {offer.owner?.logoSymbolUrl ? (
-                              <img src={offer.owner.logoSymbolUrl} alt={offer.owner.name} className="w-10 h-10 object-contain" />
-                            ) : (
-                              <div className="w-10 h-10 bg-muted rounded flex items-center justify-center font-bold text-muted-foreground text-xs">
-                                {airlineCode || "??"}
-                              </div>
-                            )}
-                            <span className="text-xs text-muted-foreground text-center leading-tight line-clamp-2">
-                              {offer.owner?.name}
-                            </span>
-                            {airlineWebsite && (
-                              <a
-                                href={airlineWebsite}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="flex items-center gap-0.5 text-[10px] text-primary hover:underline"
-                                title={`Visit ${offer.owner?.name} website`}
-                              >
-                                <ExternalLink className="h-2.5 w-2.5" />
-                                Website
-                              </a>
-                            )}
-                          </div>
-
-                          <div className="flex-1 grid grid-cols-3 gap-2 text-center items-center min-w-0">
-                            <div>
-                              <div className="text-xl md:text-2xl font-bold tabular-nums">{depTime}</div>
-                              <div className="text-sm font-semibold text-primary">{slice?.origin.iataCode}</div>
-                              <div className="text-xs text-muted-foreground truncate hidden sm:block">{slice?.origin.cityName}</div>
-                              {depDate && <div className="text-xs text-muted-foreground hidden sm:block">{depDate}</div>}
+                        {/* Airline logo + name + website */}
+                        <div className="flex flex-col items-center gap-1 flex-shrink-0 w-16">
+                          {offer.owner?.logoSymbolUrl ? (
+                            <img src={offer.owner.logoSymbolUrl} alt={offer.owner.name} className="w-10 h-10 object-contain" />
+                          ) : (
+                            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center font-bold text-muted-foreground text-xs">
+                              {airlineCode || "??"}
                             </div>
+                          )}
+                          <span className="text-xs text-muted-foreground text-center leading-tight line-clamp-2">{offer.owner?.name}</span>
+                          {airlineWebsite && (
+                            <a
+                              href={airlineWebsite}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-0.5 text-[10px] text-primary hover:underline"
+                            >
+                              <ExternalLink className="h-2.5 w-2.5" />
+                              Website
+                            </a>
+                          )}
+                        </div>
 
-                            <div className="flex flex-col items-center px-1">
-                              <div className="text-xs text-muted-foreground mb-1">
-                                {slice?.duration ? formatDuration(slice.duration) : ""}
-                              </div>
-                              <div className="w-full flex items-center">
-                                <div className="h-px bg-border flex-1" />
-                                <Plane className="h-3 w-3 text-muted-foreground mx-1 flex-shrink-0" />
-                                <div className="h-px bg-border flex-1" />
-                              </div>
-                              <div className={`text-xs mt-1 font-medium ${stopCount === 0 ? "text-green-600" : "text-amber-600"}`}>
-                                {stopCount === 0 ? "Non-stop" : `${stopCount} stop${stopCount > 1 ? "s" : ""}`}
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className="text-xl md:text-2xl font-bold tabular-nums">{arrTime}</div>
-                              <div className="text-sm font-semibold text-primary">{slice?.destination.iataCode}</div>
-                              <div className="text-xs text-muted-foreground truncate hidden sm:block">{slice?.destination.cityName}</div>
-                            </div>
-                          </div>
+                        {/* Route(s) — one or two slices */}
+                        <div className="flex flex-col flex-1 gap-3 min-w-0">
+                          {renderSliceRow(offer.slices![0], isRoundTrip ? "Outbound" : undefined)}
+                          {isRoundTrip && offer.slices![1] && (
+                            <>
+                              <div className="border-t border-dashed border-border" />
+                              {renderSliceRow(offer.slices![1], "Return")}
+                            </>
+                          )}
                         </div>
 
                         {/* Price + CTA */}
