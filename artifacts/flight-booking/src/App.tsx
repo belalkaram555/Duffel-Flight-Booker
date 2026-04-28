@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,13 +20,14 @@ import TicketForm from "@/pages/ticket-form";
 import TicketDetail from "@/pages/ticket-detail";
 import Reminders from "@/pages/reminders";
 import EmployeesPage from "@/pages/employees";
+import NotAuthorized from "@/pages/not-authorized";
 
 const queryClient = new QueryClient();
 
 function AdminRoute({ component: Component }: { component: () => JSX.Element }) {
   const { currentEmployee } = useEmployee();
   if (!currentEmployee || currentEmployee.role !== "Administrator") {
-    return <Redirect to="/" />;
+    return <NotAuthorized />;
   }
   return <Component />;
 }
