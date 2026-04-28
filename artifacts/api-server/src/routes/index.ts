@@ -4,6 +4,11 @@ import offersRouter from "./offers";
 import ordersRouter from "./orders";
 import statsRouter from "./stats";
 import airportsRouter from "./airports";
+import customersRouter from "./customers";
+import notesRouter from "./notes";
+import ticketsRouter from "./tickets";
+import remindersRouter from "./reminders";
+import dashboardRouter from "./dashboard";
 
 const router: IRouter = Router();
 
@@ -12,5 +17,10 @@ router.use(offersRouter);
 router.use(ordersRouter);
 router.use(statsRouter);
 router.use(airportsRouter);
+router.use(customersRouter);
+router.use(notesRouter);
+router.use(ticketsRouter);
+router.use(remindersRouter);
+router.use(dashboardRouter);
 
 export default router;
