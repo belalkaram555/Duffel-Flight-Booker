@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq, and, gte, lt, desc, isNotNull } from "drizzle-orm";
-import { db, remindersTable, customerNotesTable, customersTable, insertReminderSchema } from "@workspace/db";
+import { db, remindersTable, customerNotesTable, customersTable, insertReminderSchema, updateReminderSchema } from "@workspace/db";
 
 const router = Router();
 
@@ -69,15 +69,20 @@ router.put("/reminders/:id/status", async (req, res) => {
     res.status(400).json({ error: "validation_error", message: "Invalid reminder ID" });
     return;
   }
-  const { status } = req.body as { status?: string };
-  if (!status || !["pending", "done", "missed"].includes(status)) {
-    res.status(400).json({ error: "validation_error", message: "status must be pending, done, or missed" });
+  const parsed = updateReminderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "validation_error", message: parsed.error.message });
+    return;
+  }
+  const status = parsed.data.status;
+  if (!status) {
+    res.status(400).json({ error: "validation_error", message: "status is required" });
     return;
   }
   try {
     const [reminder] = await db
       .update(remindersTable)
-      .set({ status: status as "pending" | "done" | "missed", updatedAt: new Date() })
+      .set({ status, updatedAt: new Date() })
       .where(eq(remindersTable.id, id))
       .returning();
     if (!reminder) {
@@ -123,16 +128,17 @@ router.get("/followups", async (req, res) => {
       };
     });
 
+    const pending = enriched.filter((n) => n.followUpStatus === "pending");
+    const missed = enriched.filter((n) => n.followUpStatus === "missed");
+    const done = enriched.filter((n) => n.followUpStatus === "done");
     const today = enriched.filter(
       (n) => n.followUpDate && n.followUpDate >= todayStart && n.followUpDate < todayEnd
     );
     const upcoming = enriched.filter(
       (n) => n.followUpDate && n.followUpDate >= todayEnd && n.followUpStatus === "pending"
     );
-    const missed = enriched.filter((n) => n.followUpStatus === "missed");
-    const done = enriched.filter((n) => n.followUpStatus === "done");
 
-    res.json({ today, upcoming, missed, done, all: enriched });
+    res.json({ pending, missed, done, today, upcoming, all: enriched });
   } catch (err) {
     req.log.error({ err }, "Error listing follow-ups");
     res.status(500).json({ error: "server_error", message: "Failed to list follow-ups" });

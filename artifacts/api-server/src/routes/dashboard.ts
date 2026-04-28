@@ -70,6 +70,13 @@ router.get("/dashboard/stats", async (req, res) => {
       .from(customersTable)
       .groupBy(customersTable.status);
 
+    const revenueResult = await db
+      .select({ total: sql<string>`COALESCE(SUM(${paymentsTable.amount}), 0)::text` })
+      .from(paymentsTable)
+      .where(eq(paymentsTable.paymentStatus, "paid"));
+
+    const totalRevenue = revenueResult[0]?.total ?? "0";
+
     const recentCustomers = await db
       .select()
       .from(customersTable)
@@ -116,6 +123,7 @@ router.get("/dashboard/stats", async (req, res) => {
         missedFollowUps: missedFollowUps[0]?.count ?? 0,
         byStatus: customerStatusMap,
       },
+      totalRevenue,
       tickets: {
         total: totalTicketsResult?.count ?? 0,
         quoted: statusMap["quoted"] ?? 0,

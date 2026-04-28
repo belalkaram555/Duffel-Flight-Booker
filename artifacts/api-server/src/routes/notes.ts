@@ -51,7 +51,10 @@ router.post("/customers/:customerId/notes", async (req, res) => {
     res.status(400).json({ error: "validation_error", message: "Invalid customer ID" });
     return;
   }
-  const body = coerceDates({ ...req.body, customerId }, "followUpDate");
+  const employeeId = req.headers["x-employee-id"]
+    ? Number(req.headers["x-employee-id"])
+    : 1;
+  const body = coerceDates({ ...req.body, customerId, employeeId }, "followUpDate");
   const parsed = insertCustomerNoteSchema.safeParse(body);
   if (!parsed.success) {
     res.status(400).json({ error: "validation_error", message: parsed.error.message });
