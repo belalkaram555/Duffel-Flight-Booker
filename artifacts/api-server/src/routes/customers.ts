@@ -1,10 +1,25 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { eq, ilike, or, sql, and, desc } from "drizzle-orm";
 import { db, customersTable, ticketsTable, insertCustomerSchema, insertTicketSchema, updateCustomerSchema } from "@workspace/db";
+import { validateSession } from "../lib/sessions.js";
 
 const router = Router();
 
-router.get("/customers", async (req, res) => {
+const requireAuth: RequestHandler = (req, res, next) => {
+  const auth = req.headers["authorization"];
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "unauthorized", message: "Authentication required" });
+    return;
+  }
+  const session = validateSession(auth.slice(7));
+  if (!session) {
+    res.status(401).json({ error: "unauthorized", message: "Session expired or invalid. Please log in again." });
+    return;
+  }
+  next();
+};
+
+router.get("/customers", requireAuth, async (req, res) => {
   try {
     const { search, status, assignedEmployeeId } = req.query as Record<string, string | undefined>;
 
@@ -82,7 +97,7 @@ router.get("/customers", async (req, res) => {
   }
 });
 
-router.post("/customers", async (req, res) => {
+router.post("/customers", requireAuth, async (req, res) => {
   const parsed = insertCustomerSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "validation_error", message: parsed.error.message });
@@ -100,7 +115,7 @@ router.post("/customers", async (req, res) => {
   }
 });
 
-router.post("/customers/import", async (req, res) => {
+router.post("/customers/import", requireAuth, async (req, res) => {
   const rows = req.body as Array<{
     fullName: string;
     phone?: string;
@@ -184,7 +199,7 @@ router.post("/customers/import", async (req, res) => {
   res.json({ results, succeeded, total: rows.length });
 });
 
-router.get("/customers/:id", async (req, res) => {
+router.get("/customers/:id", requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: "validation_error", message: "Invalid customer ID" });
@@ -206,7 +221,7 @@ router.get("/customers/:id", async (req, res) => {
   }
 });
 
-router.put("/customers/:id", async (req, res) => {
+router.put("/customers/:id", requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: "validation_error", message: "Invalid customer ID" });
@@ -234,7 +249,7 @@ router.put("/customers/:id", async (req, res) => {
   }
 });
 
-router.delete("/customers/:id", async (req, res) => {
+router.delete("/customers/:id", requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: "validation_error", message: "Invalid customer ID" });

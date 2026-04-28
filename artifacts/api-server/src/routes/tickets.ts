@@ -1,8 +1,23 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { eq, desc, and, sum } from "drizzle-orm";
 import { db, ticketsTable, ticketStatusHistoryTable, paymentsTable, customersTable, insertTicketSchema, updateTicketSchema, insertPaymentSchema } from "@workspace/db";
+import { validateSession } from "../lib/sessions.js";
 
 const router = Router();
+
+const requireAuth: RequestHandler = (req, res, next) => {
+  const auth = req.headers["authorization"];
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ error: "unauthorized", message: "Authentication required" });
+    return;
+  }
+  const session = validateSession(auth.slice(7));
+  if (!session) {
+    res.status(401).json({ error: "unauthorized", message: "Session expired or invalid. Please log in again." });
+    return;
+  }
+  next();
+};
 
 function coerceDates(body: Record<string, unknown>, ...fields: string[]) {
   const result = { ...body };
@@ -14,7 +29,7 @@ function coerceDates(body: Record<string, unknown>, ...fields: string[]) {
   return result;
 }
 
-router.get("/tickets", async (req, res) => {
+router.get("/tickets", requireAuth, async (req, res) => {
   try {
     const { customerId, ticketStatus, paymentStatus, employeeId } = req.query as Record<string, string | undefined>;
 
@@ -48,7 +63,7 @@ router.get("/tickets", async (req, res) => {
   }
 });
 
-router.post("/tickets", async (req, res) => {
+router.post("/tickets", requireAuth, async (req, res) => {
   const parsed = insertTicketSchema.safeParse(coerceDates(req.body as Record<string, unknown>, "departureDatetime", "arrivalDatetime"));
   if (!parsed.success) {
     res.status(400).json({ error: "validation_error", message: parsed.error.message });
@@ -71,7 +86,7 @@ router.post("/tickets", async (req, res) => {
   }
 });
 
-router.get("/tickets/:id", async (req, res) => {
+router.get("/tickets/:id", requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: "validation_error", message: "Invalid ticket ID" });
@@ -122,7 +137,7 @@ router.get("/tickets/:id", async (req, res) => {
   }
 });
 
-router.put("/tickets/:id", async (req, res) => {
+router.put("/tickets/:id", requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: "validation_error", message: "Invalid ticket ID" });
@@ -165,7 +180,7 @@ router.put("/tickets/:id", async (req, res) => {
   }
 });
 
-router.delete("/tickets/:id", async (req, res) => {
+router.delete("/tickets/:id", requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: "validation_error", message: "Invalid ticket ID" });
@@ -231,7 +246,7 @@ async function handleAddPayment(ticketId: number, body: Record<string, unknown>,
   }
 }
 
-router.post("/payments", async (req, res) => {
+router.post("/payments", requireAuth, async (req, res) => {
   const ticketId = Number((req.body as Record<string, unknown>).ticketId);
   if (isNaN(ticketId)) {
     res.status(400).json({ error: "validation_error", message: "ticketId is required" });
@@ -240,7 +255,7 @@ router.post("/payments", async (req, res) => {
   await handleAddPayment(ticketId, req.body as Record<string, unknown>, res, req.log);
 });
 
-router.post("/tickets/:id/payments", async (req, res) => {
+router.post("/tickets/:id/payments", requireAuth, async (req, res) => {
   const ticketId = Number(req.params.id);
   if (isNaN(ticketId)) {
     res.status(400).json({ error: "validation_error", message: "Invalid ticket ID" });
