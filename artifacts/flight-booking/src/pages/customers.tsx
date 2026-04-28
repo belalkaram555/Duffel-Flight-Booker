@@ -11,36 +11,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useToast } from "@/hooks/use-toast";
 import { formatShortDate } from "@/lib/formatters";
 import { CustomerForm, EMPTY_CUSTOMER_FORM } from "@/components/customer-form";
+import { STATUS_COLORS, STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES } from "@/lib/customer-constants";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-const STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-100 text-blue-800",
-  interested: "bg-yellow-100 text-yellow-800",
-  follow_up: "bg-purple-100 text-purple-800",
-  booked: "bg-green-100 text-green-800",
-  cancelled: "bg-red-100 text-red-800",
-  lost: "bg-gray-100 text-gray-600",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  new: "New",
-  interested: "Interested",
-  follow_up: "Follow-up",
-  booked: "Booked",
-  cancelled: "Cancelled",
-  lost: "Lost",
-};
-
-const CUSTOMER_STATUSES = ["new", "interested", "follow_up", "booked", "cancelled", "lost"];
-const CUSTOMER_SOURCES = ["facebook", "whatsapp", "walk_in", "referral", "other"];
-const SOURCE_LABELS: Record<string, string> = {
-  facebook: "Facebook",
-  whatsapp: "WhatsApp",
-  walk_in: "Walk-in",
-  referral: "Referral",
-  other: "Other",
-};
 
 interface Customer {
   id: number;
@@ -61,12 +34,8 @@ interface Customer {
 }
 
 
-async function fetchCustomers(search: string, status: string): Promise<{ customers: Customer[] }> {
-  const params = new URLSearchParams();
-  if (search) params.set("search", search);
-  if (status && status !== "all") params.set("status", status);
-  const url = `${BASE}/api/customers${params.toString() ? `?${params}` : ""}`;
-  const res = await fetch(url);
+async function fetchCustomers(): Promise<{ customers: Customer[] }> {
+  const res = await fetch(`${BASE}/api/customers`);
   if (!res.ok) throw new Error("Failed to fetch customers");
   return res.json();
 }
@@ -125,20 +94,29 @@ export function CustomerFormSheet({
   );
 }
 
-export { STATUS_COLORS, STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES, CUSTOMER_SOURCES };
-
 export default function Customers() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [addOpen, setAddOpen] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["customers", search, statusFilter],
-    queryFn: () => fetchCustomers(search, statusFilter),
+    queryKey: ["customers"],
+    queryFn: fetchCustomers,
     staleTime: 30_000,
   });
 
-  const customers = data?.customers ?? [];
+  const allCustomers = data?.customers ?? [];
+
+  const customers = allCustomers.filter((c) => {
+    const q = search.toLowerCase();
+    const matchesSearch =
+      !q ||
+      c.fullName.toLowerCase().includes(q) ||
+      (c.phone ?? "").toLowerCase().includes(q) ||
+      (c.email ?? "").toLowerCase().includes(q);
+    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6">

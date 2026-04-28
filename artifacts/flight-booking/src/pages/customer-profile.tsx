@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatShortDate, formatDateTime } from "@/lib/formatters";
-import { STATUS_COLORS, STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES } from "./customers";
+import { STATUS_COLORS, STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES } from "@/lib/customer-constants";
 import { CustomerForm } from "@/components/customer-form";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
