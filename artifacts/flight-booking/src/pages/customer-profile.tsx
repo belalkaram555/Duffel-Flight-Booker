@@ -19,7 +19,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { formatShortDate, formatDateTime } from "@/lib/formatters";
+import { formatShortDate, formatDateTime, formatDate } from "@/lib/formatters";
 import { STATUS_COLORS, STATUS_LABELS, CUSTOMER_STATUSES } from "@/lib/customer-constants";
 import { CustomerForm } from "@/components/customer-form";
 import { authFetch, BASE } from "@/lib/api";
@@ -48,6 +48,22 @@ interface Customer {
   updatedAt: string;
 }
 
+interface CustomerTicket {
+  id: number;
+  flightRoute: string | null;
+  airline: string | null;
+  pnr: string | null;
+  departureDatetime: string | null;
+  bookingDate: string | null;
+  costPrice: string | null;
+  price: string | null;
+  currency: string;
+  ticketStatus: string;
+  paymentStatus: string;
+  notes: string | null;
+  createdAt: string;
+}
+
 interface Note {
   id: number;
   customerId: number;
@@ -69,6 +85,12 @@ async function fetchCustomer(id: number): Promise<{ customer: Customer }> {
 async function fetchNotes(id: number): Promise<{ notes: Note[] }> {
   const res = await authFetch(`${BASE}/api/customers/${id}/notes`);
   if (!res.ok) throw new Error("Failed to fetch notes");
+  return res.json();
+}
+
+async function fetchCustomerTickets(id: number): Promise<{ tickets: CustomerTicket[] }> {
+  const res = await authFetch(`${BASE}/api/tickets?customerId=${id}`);
+  if (!res.ok) throw new Error("Failed to fetch tickets");
   return res.json();
 }
 
@@ -384,6 +406,12 @@ export default function CustomerProfile() {
     enabled: !isNaN(id),
   });
 
+  const { data: ticketsData, isLoading: ticketsLoading } = useQuery({
+    queryKey: ["customer-tickets", id],
+    queryFn: () => fetchCustomerTickets(id),
+    enabled: !isNaN(id),
+  });
+
   const statusMutation = useMutation({
     mutationFn: (status: string) => updateCustomer(id, { status }),
     onSuccess: () => {
@@ -434,6 +462,7 @@ export default function CustomerProfile() {
 
   const c = customerData.customer;
   const notes = notesData?.notes ?? [];
+  const customerTickets = ticketsData?.tickets ?? [];
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -549,6 +578,106 @@ export default function CustomerProfile() {
             <InfoRow label="Address" value={c.address} icon={<MapPin className="h-3.5 w-3.5" />} />
             <InfoRow label="Added" value={formatShortDate(c.createdAt)} />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Tickets Section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Ticket className="h-4 w-4" /> Flight Tickets
+            {customerTickets.length > 0 && (
+              <span className="text-sm font-normal text-muted-foreground">({customerTickets.length})</span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {ticketsLoading && (
+            <div className="space-y-2">
+              {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+            </div>
+          )}
+          {!ticketsLoading && customerTickets.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-3">No tickets found.</p>
+          )}
+          {!ticketsLoading && customerTickets.length > 0 && (
+            <div className="divide-y">
+              {customerTickets.map((t) => {
+                const cost = t.costPrice ? parseFloat(t.costPrice) : null;
+                const sell = t.price ? parseFloat(t.price) : null;
+                const profit = cost != null && sell != null ? sell - cost : null;
+                const paymentNote = t.notes?.startsWith("Payment method:") ? t.notes.replace("Payment method:", "").trim() : null;
+                return (
+                  <div key={t.id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {t.pnr && (
+                            <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded font-medium">PNR: {t.pnr}</span>
+                          )}
+                          {t.airline && (
+                            <span className="text-sm font-medium">{t.airline}</span>
+                          )}
+                          {t.flightRoute && (
+                            <span className="text-sm text-muted-foreground">{t.flightRoute}</span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5 text-sm">
+                          {t.bookingDate && (
+                            <div className="flex gap-1">
+                              <span className="text-muted-foreground w-24 flex-shrink-0">Booking Date</span>
+                              <span className="font-medium">{formatDate(t.bookingDate)}</span>
+                            </div>
+                          )}
+                          {!t.bookingDate && (
+                            <div className="flex gap-1">
+                              <span className="text-muted-foreground w-24 flex-shrink-0">Booking Date</span>
+                              <span className="font-medium">{formatDate(t.createdAt)}</span>
+                            </div>
+                          )}
+                          {t.departureDatetime && (
+                            <div className="flex gap-1">
+                              <span className="text-muted-foreground w-24 flex-shrink-0">Travel Date</span>
+                              <span className="font-medium">{formatDate(t.departureDatetime)}</span>
+                            </div>
+                          )}
+                          {sell != null && (
+                            <div className="flex gap-1">
+                              <span className="text-muted-foreground w-24 flex-shrink-0">Sell Price</span>
+                              <span className="font-medium">{sell.toFixed(3)} {t.currency}</span>
+                            </div>
+                          )}
+                          {cost != null && (
+                            <div className="flex gap-1">
+                              <span className="text-muted-foreground w-24 flex-shrink-0">Cost Price</span>
+                              <span className="font-medium">{cost.toFixed(3)} {t.currency}</span>
+                            </div>
+                          )}
+                          {profit != null && (
+                            <div className="flex gap-1">
+                              <span className="text-muted-foreground w-24 flex-shrink-0">Net Profit</span>
+                              <span className={`font-semibold ${profit >= 0 ? "text-green-600" : "text-red-500"}`}>
+                                {profit.toFixed(3)} {t.currency}
+                              </span>
+                            </div>
+                          )}
+                          {paymentNote && (
+                            <div className="flex gap-1">
+                              <span className="text-muted-foreground w-24 flex-shrink-0">Payment</span>
+                              <span className="font-medium capitalize">{paymentNote}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <Link href={`/tickets/${t.id}`}>
+                        <Button variant="outline" size="sm" className="flex-shrink-0">View</Button>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 

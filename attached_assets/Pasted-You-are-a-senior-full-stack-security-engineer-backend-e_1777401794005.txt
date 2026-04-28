@@ -1,0 +1,657 @@
+You are a senior full-stack security engineer, backend engineer, and secure code reviewer.
+
+I have a Travel Ticket Management System built with React/TypeScript frontend and a backend API. The system is hosted on Replit/Vite during development. I already have a penetration testing report, and I need you to fix every security issue mentioned in it without breaking the current app functionality.
+
+Your task is NOT to just give advice. Your task is to inspect the project files, understand the current architecture, modify the code, add missing security layers, and then provide a clear before/after summary.
+
+Important safety rules:
+- Do not perform destructive actions.
+- Do not brute-force anything.
+- Do not run denial-of-service tests.
+- Do not delete real data.
+- Only implement defensive security fixes.
+- Preserve existing business features, pages, forms, and UI behavior unless a change is required for security.
+- If a fix requires a database migration, create the migration safely and explain it.
+- If you are unsure about the project structure, inspect the files first before changing anything.
+
+==================================================
+PROJECT SECURITY REMEDIATION SCOPE
+==================================================
+
+The penetration test identified these API endpoints:
+
+- /api/dashboard/stats
+- /api/customers
+- /api/customers/{id}
+- /api/tickets
+- /api/tickets/{id}
+- /api/tickets/{id}/deactivate
+- /api/tickets/{id}/activate
+- /api/employees
+- /api/employees/{id}
+- /api/employees/{id}/deactivate
+- /api/employees/{id}/activate
+- /api/payments
+- /api/auth/login
+- /api/auth/logout
+- /api/reminders
+- /api/orders if it exists in the project
+
+You must audit and secure all of them.
+
+==================================================
+PHASE 1 — FULL PROJECT DISCOVERY
+==================================================
+
+First, inspect the whole codebase and identify:
+
+1. Backend framework and server entry point.
+2. All API route files.
+3. Authentication middleware.
+4. Authorization / role-check middleware.
+5. Database access layer.
+6. ORM or raw SQL usage.
+7. Frontend API client / authFetch implementation.
+8. Where sessionToken and currentEmployee are stored.
+9. Environment variable usage.
+10. Vite/Replit configuration.
+11. Production build configuration.
+12. Any public/static files that may expose config files.
+13. Existing validation logic in forms and backend.
+14. Existing error handling.
+15. Existing logging.
+16. Existing tests if any.
+
+After discovery, create a short internal checklist of the files that need changes.
+
+==================================================
+PHASE 2 — AUTHENTICATION HARDENING
+==================================================
+
+Fix authentication weaknesses.
+
+Current problem:
+The app uses PIN-based login, possibly 4 digits, and stores sessionToken/currentEmployee in localStorage. This is risky because XSS can steal tokens.
+
+Required fixes:
+
+1. Replace localStorage token storage with secure session handling:
+   - Prefer HttpOnly, Secure, SameSite cookies for session/auth tokens.
+   - Do not store sensitive tokens in localStorage or sessionStorage.
+   - The frontend should not manually expose the raw token in JavaScript.
+   - Update authFetch or equivalent API client to use credentials/cookies safely.
+
+2. Implement secure cookie settings:
+   - httpOnly: true
+   - secure: true in production
+   - sameSite: "lax" or "strict" depending on app flow
+   - reasonable expiration time
+   - clear cookie correctly on logout
+
+3. Improve login security:
+   - Add rate limiting specifically on /api/auth/login.
+   - Add IP-based and username-based throttling if possible.
+   - Add temporary lockout after repeated failed attempts.
+   - Never reveal whether username or PIN/password is wrong.
+   - Use a generic error message like:
+     "Invalid username or password"
+   - Do not return sensitive employee data after login.
+
+4. Improve PIN/password handling:
+   - If the system currently uses plain PINs, migrate to hashed secrets.
+   - Use a strong password hashing method such as bcrypt/argon2.
+   - Do not log PINs/passwords.
+   - If the project must keep PIN login for business reasons, still hash the PIN and enforce rate limiting strongly.
+   - If possible, support stronger passwords instead of 4-digit PINs.
+
+5. Logout:
+   - Invalidate server-side session if applicable.
+   - Clear the HttpOnly cookie.
+   - Ensure old tokens/sessions cannot be reused after logout if server-side sessions are used.
+
+Acceptance criteria:
+- No auth token exists in localStorage.
+- No sensitive employee object exists in localStorage.
+- Login has rate limiting.
+- Failed login messages are generic.
+- Password/PIN is hashed, not stored in plain text.
+- Logout clears the session securely.
+
+==================================================
+PHASE 3 — AUTHORIZATION AND RBAC
+==================================================
+
+Fix authorization issues and prevent privilege escalation.
+
+Current risk:
+The frontend route /employees may be restricted to Administrator, but this must also be enforced on the backend.
+
+Required fixes:
+
+1. Create or improve backend authorization middleware:
+   - requireAuth
+   - requireRole("Administrator")
+   - requirePermission(...) if the project supports permissions
+
+2. Apply server-side role checks to sensitive endpoints:
+   - /api/employees GET/POST
+   - /api/employees/{id} GET/PUT/PATCH/DELETE
+   - /api/employees/{id}/activate
+   - /api/employees/{id}/deactivate
+   - Any dashboard/admin-only stats
+   - Any payment/admin action if required
+
+3. Never rely on frontend-only protection.
+4. Frontend route guards are allowed only as UX, not as security.
+5. Return safe responses:
+   - 401 if unauthenticated
+   - 403 if authenticated but not authorized
+6. Do not leak whether a protected resource exists if the user should not access it.
+
+Acceptance criteria:
+- Non-admin users cannot access employee management API even if they call the endpoint directly.
+- Admin-only routes are protected on the backend.
+- Role checks are centralized and reusable.
+- No sensitive route depends only on frontend checks.
+
+==================================================
+PHASE 4 — BOLA / OBJECT-LEVEL AUTHORIZATION
+==================================================
+
+Fix Broken Object Level Authorization.
+
+Current risk:
+A user may change an ID in the URL and access another customer, ticket, order, payment, reminder, or employee record.
+
+Required fixes:
+
+For every endpoint that uses an ID, verify that the authenticated user has permission to access that exact object:
+
+- GET /api/customers/{id}
+- PUT /api/customers/{id}
+- DELETE /api/customers/{id}
+- GET /api/tickets/{id}
+- PUT /api/tickets/{id}
+- PATCH /api/tickets/{id}
+- DELETE /api/tickets/{id}
+- POST/PATCH /api/tickets/{id}/activate
+- POST/PATCH /api/tickets/{id}/deactivate
+- GET/PUT/PATCH/DELETE /api/employees/{id}
+- /api/orders/{id} if exists
+- /api/reminders/{id} if exists
+- /api/payments/{id} if exists
+
+Implementation rules:
+1. Do not just check that the user is logged in.
+2. Check ownership, branch, assigned employee, company/tenant, or role.
+3. If the project has employees and admins:
+   - Admin can access all records.
+   - Normal employee can only access records assigned to them or allowed by business rules.
+4. If there is no ownership model, design a simple safe one based on the existing schema and explain it.
+5. Make sure list endpoints also filter records according to the user’s permissions.
+
+Acceptance criteria:
+- User A cannot access User B’s private records by changing IDs.
+- List endpoints do not return unauthorized records.
+- Object-level checks are applied consistently.
+- Tests or manual verification steps are provided.
+
+==================================================
+PHASE 5 — DATA OVEREXPOSURE FIXES
+==================================================
+
+Current risk:
+APIs may return more data than the frontend needs.
+
+Required fixes:
+
+1. Review every API response.
+2. Create DTOs or safe response mappers.
+3. Never return:
+   - Password hashes
+   - PIN hashes
+   - Raw tokens
+   - Internal secrets
+   - Unnecessary internal IDs
+   - Sensitive employee fields not needed by UI
+   - Environment values
+4. For customers, tickets, payments, reminders, employees:
+   - Return only fields needed by the frontend.
+5. For dashboard stats:
+   - Return aggregated data only.
+   - Do not expose raw private records unnecessarily.
+
+Acceptance criteria:
+- No password/PIN hash appears in any API response.
+- Employee API returns minimal safe data.
+- Customer/ticket/payment/reminder APIs return only needed fields.
+- Frontend still works after DTO changes.
+
+==================================================
+PHASE 6 — INPUT VALIDATION AND SANITIZATION
+==================================================
+
+Current risk:
+Frontend validation exists in forms like customer-form.tsx, but backend validation is required.
+
+Required fixes:
+
+1. Add server-side validation to every create/update endpoint:
+   - customers
+   - tickets
+   - employees
+   - payments
+   - reminders
+   - orders if exists
+   - login
+
+2. Validate:
+   - required fields
+   - type
+   - length
+   - allowed values/enums
+   - dates
+   - numbers/prices
+   - phone numbers
+   - emails if used
+   - IDs
+   - status values
+   - role values
+
+3. Use a schema validation library if available or suitable:
+   - Zod
+   - Joi
+   - Yup
+   - class-validator
+   - or an existing project validation pattern
+
+4. Reject invalid input with safe 400 responses.
+5. Never trust frontend validation only.
+6. Trim and normalize strings where appropriate.
+7. Prevent mass assignment:
+   - Do not allow the client to set protected fields like role, isAdmin, createdBy, ownerId, passwordHash, pinHash, etc. unless explicitly allowed.
+
+Acceptance criteria:
+- Every mutation endpoint validates body data server-side.
+- Invalid data is rejected before database operations.
+- Protected fields cannot be overwritten by request body.
+- Frontend form behavior remains normal.
+
+==================================================
+PHASE 7 — XSS PROTECTION
+==================================================
+
+Current risk:
+User input may be displayed later in React pages, creating XSS risk if unsafe rendering is used.
+
+Required fixes:
+
+1. Search the frontend for:
+   - dangerouslySetInnerHTML
+   - direct HTML rendering
+   - markdown rendering
+   - innerHTML usage
+   - unsanitized content injection
+
+2. Remove unsafe rendering where possible.
+3. If HTML rendering is required:
+   - sanitize using a trusted sanitizer.
+4. Ensure React output encoding is preserved.
+5. Sanitize or validate dangerous text fields server-side where appropriate.
+6. Add Content Security Policy headers.
+7. Avoid inline scripts if possible.
+
+Recommended CSP baseline:
+- default-src 'self'
+- script-src 'self'
+- style-src 'self' 'unsafe-inline' only if required by the current stack
+- img-src 'self' data: https:
+- connect-src 'self' plus required API domains
+- object-src 'none'
+- base-uri 'self'
+- frame-ancestors 'none'
+
+Adjust CSP carefully so the app still works.
+
+Acceptance criteria:
+- No unsafe HTML injection remains.
+- CSP headers are added.
+- Stored user input cannot execute scripts when displayed.
+- App UI still works.
+
+==================================================
+PHASE 8 — SQL INJECTION PROTECTION
+==================================================
+
+Current risk:
+If backend uses raw SQL, unsafe queries may allow SQL Injection.
+
+Required fixes:
+
+1. Inspect all database queries.
+2. If using raw SQL:
+   - convert to parameterized queries.
+3. If using ORM:
+   - ensure no unsafe raw query interpolation exists.
+4. Never concatenate user input into SQL strings.
+5. Validate and parameterize IDs, filters, search queries, pagination, sorting.
+6. For sorting:
+   - use allowlisted column names only.
+7. For filters:
+   - validate allowed filter values.
+
+Acceptance criteria:
+- No SQL query directly interpolates user input.
+- All raw SQL uses parameters.
+- Search/filter/sort endpoints are safe.
+- Database errors are not leaked to users.
+
+==================================================
+PHASE 9 — RATE LIMITING AND ABUSE PROTECTION
+==================================================
+
+Required fixes:
+
+1. Add rate limiting to:
+   - /api/auth/login: strict
+   - /api/auth/logout: moderate
+   - all /api/* routes: general limiter
+   - write endpoints: stricter than read endpoints
+2. Return safe 429 responses.
+3. Do not reveal internal limiter details.
+4. Make limits configurable by environment variables.
+5. Make sure rate limiting works behind Replit/proxy if applicable.
+
+Suggested behavior:
+- Login: low limit per IP + username combination.
+- General API: reasonable per-IP limit.
+- Mutation endpoints: stricter limit.
+
+Acceptance criteria:
+- Repeated login attempts are blocked.
+- API abuse receives 429.
+- Normal app usage is not broken.
+
+==================================================
+PHASE 10 — SECURE ERROR HANDLING
+==================================================
+
+Required fixes:
+
+1. Implement centralized error handler.
+2. User-facing errors must be generic.
+3. Internal stack traces must not be returned in production.
+4. Database errors must not expose table names, SQL syntax, file paths, or secrets.
+5. Log detailed errors server-side only.
+6. Use consistent error response format:
+   {
+     "error": "bad_request | unauthorized | forbidden | not_found | rate_limited | internal_error",
+     "message": "Safe user-facing message"
+   }
+
+Acceptance criteria:
+- No stack traces in production responses.
+- No sensitive details in frontend-visible errors.
+- Errors are logged internally.
+
+==================================================
+PHASE 11 — SECURITY LOGGING AND MONITORING
+==================================================
+
+Required fixes:
+
+Add safe security logs for:
+
+1. Failed login attempts.
+2. Successful login.
+3. Logout.
+4. Rate limit triggered.
+5. Unauthorized access attempt.
+6. Forbidden access attempt.
+7. Employee creation/update/deactivation.
+8. Ticket deletion/deactivation.
+9. Payment creation.
+10. Suspicious validation failures.
+
+Logging rules:
+- Do not log passwords, PINs, tokens, full cookies, or secrets.
+- Include timestamp, userId if available, IP if available, route, action, and result.
+- Keep logs structured if possible.
+
+Acceptance criteria:
+- Important security events are logged.
+- No secrets are logged.
+- Logs are useful for auditing.
+
+==================================================
+PHASE 12 — ENVIRONMENT AND CONFIG HARDENING
+==================================================
+
+Current risk:
+Files like package.json, tsconfig.json, and vite.config.ts were accessible directly from the browser.
+
+Required fixes:
+
+1. Ensure production does not expose source/config files:
+   - package.json
+   - tsconfig.json
+   - vite.config.ts
+   - .env
+   - source maps if not needed
+   - server source files
+   - lock files if unnecessary
+2. Check static/public directory.
+3. Ensure only built frontend assets are served publicly.
+4. Add deny rules or server middleware to block sensitive file extensions/paths if needed.
+5. Ensure .env is not committed or exposed.
+6. Ensure frontend only receives environment variables explicitly meant for frontend.
+7. Do not expose backend secrets in Vite variables.
+8. Ensure development plugins are disabled in production:
+   - @replit/vite-plugin-cartographer
+   - @replit/vite-plugin-dev-banner
+   - any dev-only debug tooling
+9. Ensure NODE_ENV is production in production build.
+10. Review Replit deployment settings and secrets.
+
+Acceptance criteria:
+- Config/source files are not accessible from browser in production.
+- No secret environment variable is bundled into frontend.
+- Dev plugins are not active in production.
+- Production build serves only safe assets.
+
+==================================================
+PHASE 13 — SECURITY HEADERS
+==================================================
+
+Add security headers globally:
+
+1. Content-Security-Policy
+2. X-Content-Type-Options: nosniff
+3. X-Frame-Options: DENY or use CSP frame-ancestors
+4. Referrer-Policy: strict-origin-when-cross-origin
+5. Permissions-Policy with minimal permissions
+6. Strict-Transport-Security in production HTTPS only
+7. Cache-Control rules for sensitive API responses
+
+Acceptance criteria:
+- Security headers appear on responses.
+- Headers do not break the app.
+- Sensitive API responses are not cached publicly.
+
+==================================================
+PHASE 14 — HTTPS AND COOKIE PRODUCTION SETTINGS
+==================================================
+
+Required fixes:
+
+1. Enforce HTTPS in production.
+2. Secure cookies only over HTTPS in production.
+3. Configure trust proxy correctly if behind Replit/proxy.
+4. Do not send auth cookies over insecure production connections.
+5. If local development uses HTTP, make secure behavior environment-aware.
+
+Acceptance criteria:
+- Production uses HTTPS-safe settings.
+- Local development still works.
+- Cookies are secure in production.
+
+==================================================
+PHASE 15 — DEPENDENCY SECURITY
+==================================================
+
+Required fixes:
+
+1. Inspect package.json.
+2. Run dependency audit if available.
+3. Update vulnerable dependencies safely.
+4. Remove unused risky dependencies.
+5. Do not introduce unnecessary packages.
+6. If a dependency cannot be updated, explain why and add mitigation.
+
+Acceptance criteria:
+- Known vulnerable dependencies are updated where possible.
+- App still builds.
+- No unnecessary heavy security package is added without reason.
+
+==================================================
+PHASE 16 — FRONTEND AUTH FLOW UPDATE
+==================================================
+
+Because tokens should no longer be stored in localStorage:
+
+1. Update frontend auth state management.
+2. Replace localStorage-based session checks.
+3. Add a safe /api/auth/me endpoint if missing:
+   - Returns current safe user profile only.
+   - Uses HttpOnly cookie/session.
+4. On app load:
+   - call /api/auth/me to restore session.
+5. On logout:
+   - call /api/auth/logout
+   - clear frontend user state
+   - redirect to login
+6. Update authFetch:
+   - use credentials: "include"
+   - do not attach Authorization Bearer token from localStorage
+7. Remove all localStorage references for:
+   - sessionToken
+   - currentEmployee
+   - auth tokens
+   - sensitive user data
+
+Acceptance criteria:
+- Refreshing the page keeps login state through secure cookie.
+- Logout works.
+- No token is readable by frontend JavaScript.
+- All protected API calls still work.
+
+==================================================
+PHASE 17 — TESTING REQUIREMENTS
+==================================================
+
+After code changes, add or provide tests/verification steps for:
+
+Authentication:
+- Login succeeds with valid credentials.
+- Login fails with invalid credentials.
+- Repeated failed login attempts trigger rate limit.
+- Logout clears session.
+- /api/auth/me works with valid session.
+- /api/auth/me fails without session.
+
+Authorization:
+- Unauthenticated user gets 401.
+- Normal employee cannot access admin employee routes.
+- Admin can access employee management.
+- User cannot access another user's/customer's/ticket's object if not authorized.
+
+Validation:
+- Invalid customer payload is rejected.
+- Invalid ticket payload is rejected.
+- Invalid employee payload is rejected.
+- Invalid payment payload is rejected.
+- Protected fields cannot be overwritten.
+
+Security:
+- No token in localStorage.
+- No password/PIN hash in API response.
+- Config files are not accessible from browser.
+- CSP/security headers exist.
+- SQL queries are parameterized.
+- Production errors do not expose stack traces.
+
+Build:
+- npm install works.
+- npm run build works.
+- npm run test works if tests exist.
+- App starts successfully.
+- Main pages still render.
+
+==================================================
+PHASE 18 — FINAL OUTPUT FORMAT
+==================================================
+
+When finished, provide the result in this exact structure:
+
+1. Summary of what you changed
+   - Short clear bullets.
+
+2. Files modified
+   - File path
+   - What changed
+   - Why it changed
+
+3. Security issues fixed
+   - Authentication
+   - Authorization/RBAC
+   - BOLA
+   - XSS
+   - SQL Injection
+   - Rate Limiting
+   - Secure Cookies
+   - Config Exposure
+   - Environment Variables
+   - Error Handling
+   - Logging
+   - Security Headers
+   - Dependency Updates
+
+4. Remaining risks
+   - Anything that could not be fixed automatically
+   - Anything that requires deployment/server settings
+   - Anything that requires database migration/manual action
+
+5. Manual steps I need to do
+   - Environment variables to add/change
+   - Replit settings
+   - Production deployment notes
+   - Database migration commands
+   - Any admin password/PIN reset instructions
+
+6. Testing checklist
+   - Exact commands to run
+   - Exact URLs/endpoints to verify
+   - Expected result for each test
+
+7. Do not skip list
+   Confirm explicitly:
+   - [ ] localStorage token removed
+   - [ ] HttpOnly cookie/session implemented
+   - [ ] login rate limit implemented
+   - [ ] generic login error implemented
+   - [ ] backend RBAC implemented
+   - [ ] BOLA checks implemented
+   - [ ] DTO/safe response mapping implemented
+   - [ ] server-side validation implemented
+   - [ ] XSS protections implemented
+   - [ ] SQL injection protections implemented
+   - [ ] sensitive config files blocked
+   - [ ] dev plugins disabled in production
+   - [ ] security headers added
+   - [ ] secure error handling added
+   - [ ] security logging added
+   - [ ] dependencies audited/updated
+   - [ ] build tested
+   - [ ] core app functionality preserved
+
+Start now by inspecting the project files, then implement the fixes phase by phase. Do not skip any phase.

@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, numeric, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, numeric, pgEnum, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { customersTable } from "./customers";
@@ -37,6 +37,7 @@ export const ticketsTable = pgTable("tickets", {
   pnr: text("pnr"),
   ticketStatus: ticketStatusEnum("ticket_status").default("quoted").notNull(),
   paymentStatus: paymentStatusEnum("payment_status").default("unpaid").notNull(),
+  bookingDate: date("booking_date"),
   baggageDetails: text("baggage_details"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

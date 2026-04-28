@@ -105,6 +105,7 @@ router.post("/customers/import", requireAuth, async (req, res) => {
   const rows = req.body as Array<{
     fullName: string;
     phone?: string;
+    passportNumber?: string;
     flightRoute?: string;
     travelDate?: string;
     pnr?: string;
@@ -130,6 +131,8 @@ router.post("/customers/import", requireAuth, async (req, res) => {
       }
 
       let customerId: number;
+      const passportNumber = row.passportNumber?.trim() || undefined;
+
       if (row.phone?.trim()) {
         const existing = await db
           .select({ id: customersTable.id })
@@ -138,17 +141,22 @@ router.post("/customers/import", requireAuth, async (req, res) => {
           .limit(1);
         if (existing.length > 0) {
           customerId = existing[0]!.id;
+          if (passportNumber) {
+            await db.update(customersTable)
+              .set({ passportNumber })
+              .where(eq(customersTable.id, customerId));
+          }
         } else {
           const [newCustomer] = await db
             .insert(customersTable)
-            .values({ fullName: row.fullName.trim(), phone: row.phone.trim(), status: "booked" })
+            .values({ fullName: row.fullName.trim(), phone: row.phone.trim(), passportNumber, status: "booked" })
             .returning({ id: customersTable.id });
           customerId = newCustomer!.id;
         }
       } else {
         const [newCustomer] = await db
           .insert(customersTable)
-          .values({ fullName: row.fullName.trim(), status: "booked" })
+          .values({ fullName: row.fullName.trim(), passportNumber, status: "booked" })
           .returning({ id: customersTable.id });
         customerId = newCustomer!.id;
       }
@@ -168,6 +176,7 @@ router.post("/customers/import", requireAuth, async (req, res) => {
         const d = new Date(row.travelDate);
         if (!isNaN(d.getTime())) ticketData.departureDatetime = d;
       }
+      if (row.bookingDate) ticketData.bookingDate = row.bookingDate;
       if (row.paymentMethod) ticketData.notes = `Payment method: ${row.paymentMethod}`;
 
       const ticketParsed = insertTicketSchema.safeParse(ticketData);

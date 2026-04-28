@@ -15,6 +15,7 @@ import { authFetch, BASE } from "@/lib/api";
 interface ImportRow {
   fullName: string;
   phone: string;
+  passportNumber: string;
   flightRoute: string;
   travelDate: string;
   pnr: string;
@@ -46,6 +47,7 @@ function parseDate(val: unknown): string {
 const EXPECTED_HEADERS = [
   "Customer Name / اسم العميل",
   "Customer Phone / تليفون العميل",
+  "Passport No. / رقم الجواز",
   "Travel Destination / وجهة السفر",
   "Travel Date / تاريخ السفر",
   "PNR",
@@ -121,6 +123,7 @@ export function ExcelImportDialog({ open, onClose, onSuccess }: Props) {
           return {
             fullName: String(r["Customer Name"] ?? r["Name"] ?? r["اسم العميل"] ?? r["الاسم"] ?? ""),
             phone: String(r["Customer Phone"] ?? r["Phone"] ?? r["تليفون العميل"] ?? r["التليفون"] ?? r["رقم الهاتف"] ?? ""),
+            passportNumber: String(r["Passport No."] ?? r["Passport Number"] ?? r["Passport"] ?? r["رقم الجواز"] ?? r["جواز السفر"] ?? r["رقم جواز السفر"] ?? ""),
             flightRoute: String(r["Travel Destination"] ?? r["Destination"] ?? r["وجهة السفر"] ?? r["الوجهة"] ?? ""),
             travelDate: parseDate(r["Travel Date"] ?? r["Departure Date"] ?? r["تاريخ السفر"] ?? r["تاريخ المغادرة"] ?? ""),
             pnr: String(r["PNR"] ?? r["pnr"] ?? ""),
@@ -152,6 +155,7 @@ export function ExcelImportDialog({ open, onClose, onSuccess }: Props) {
       const payload = rows.map((r) => ({
         fullName: r.fullName,
         phone: r.phone || undefined,
+        passportNumber: r.passportNumber || undefined,
         flightRoute: r.flightRoute || undefined,
         travelDate: r.travelDate || undefined,
         pnr: r.pnr || undefined,
