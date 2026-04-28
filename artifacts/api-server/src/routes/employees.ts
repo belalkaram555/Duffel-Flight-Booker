@@ -1,8 +1,8 @@
-import { Router, type RequestHandler } from "express";
+import { Router } from "express";
 import { eq, asc, sql } from "drizzle-orm";
 import { createHash } from "crypto";
 import { db, employeesTable, customersTable, ticketsTable } from "@workspace/db";
-import { validateSession } from "../lib/sessions.js";
+import { requireAdmin, getSessionFromRequest } from "../middlewares/auth.js";
 
 const router = Router();
 
@@ -43,42 +43,15 @@ function validateUpdate(body: UpdateEmployeeBody): string | null {
   return null;
 }
 
-const requireAdmin: RequestHandler = async (req, res, next) => {
-  const auth = req.headers["authorization"];
-  if (!auth?.startsWith("Bearer ")) {
-    res.status(401).json({ error: "unauthorized", message: "Authentication required" });
-    return;
-  }
-
-  const token = auth.slice(7);
-  const session = validateSession(token);
-
-  if (!session) {
-    res.status(401).json({ error: "unauthorized", message: "Session expired or invalid. Please log in again." });
-    return;
-  }
-
-  if (session.role !== "Administrator") {
-    res.status(403).json({ error: "forbidden", message: "Administrator access required" });
-    return;
-  }
-
-  next();
-};
-
 router.get("/employees", async (req, res) => {
   try {
     const { includeInactive } = req.query as Record<string, string | undefined>;
 
     if (includeInactive === "true") {
-      const auth = req.headers["authorization"];
-      if (!auth?.startsWith("Bearer ")) {
-        res.status(401).json({ error: "unauthorized", message: "Authentication required" });
-        return;
-      }
-      const session = validateSession(auth.slice(7));
+      const session = getSessionFromRequest(req);
       if (!session) {
-        res.status(401).json({ error: "unauthorized", message: "Session expired or invalid. Please log in again." });
+        const hasBearer = req.headers["authorization"]?.startsWith("Bearer ");
+        res.status(401).json({ error: "unauthorized", message: hasBearer ? "Session expired or invalid. Please log in again." : "Authentication required" });
         return;
       }
       if (session.role !== "Administrator") {
