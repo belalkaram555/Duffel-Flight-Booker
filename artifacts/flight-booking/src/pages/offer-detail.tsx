@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDuration, formatDateTime } from "@/lib/formatters";
-import { Plane, ArrowRight, Info, AlertCircle, Luggage, ShoppingBag, X } from "lucide-react";
+import { Plane, ArrowRight, Info, AlertCircle, Luggage, ShoppingBag, X, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getAirlineWebsite } from "@/lib/airlines";
 
 export default function OfferDetail() {
   const [, params] = useRoute("/offers/:offerId");
@@ -47,10 +48,28 @@ export default function OfferDetail() {
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Offer Details</h1>
-          <p className="text-muted-foreground mt-1">Review itinerary and complete your booking.</p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
+          {offer.owner?.logoSymbolUrl && (
+            <img src={offer.owner.logoSymbolUrl} alt={offer.owner.name ?? ""} className="w-12 h-12 object-contain" />
+          )}
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Offer Details</h1>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-muted-foreground text-sm">{offer.owner?.name}</p>
+              {offer.owner?.iataCode && getAirlineWebsite(offer.owner.iataCode) && (
+                <a
+                  href={getAirlineWebsite(offer.owner.iataCode)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Official Website
+                </a>
+              )}
+            </div>
+          </div>
         </div>
         <div className="text-right">
           <div className="text-3xl font-bold text-primary">

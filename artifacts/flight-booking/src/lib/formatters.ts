@@ -1,42 +1,93 @@
-export function formatCurrency(amount: string | number | null | undefined, currency?: string | null) {
-  if (amount == null) return '—';
-  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-  if (isNaN(numericAmount)) return '—';
-  if (!currency) {
-    return numericAmount.toFixed(2);
+const TO_USD: Record<string, number> = {
+  USD: 1,
+  GBP: 1.263,
+  EUR: 1.084,
+  AED: 0.272,
+  QAR: 0.274,
+  EGP: 0.02062,
+  KWD: 3.252,
+  SAR: 0.2666,
+  BHD: 2.653,
+  OMR: 2.597,
+  JOD: 1.411,
+  TRY: 0.029,
+  CHF: 1.104,
+  CAD: 0.731,
+  AUD: 0.643,
+  CNY: 0.138,
+  JPY: 0.0066,
+  INR: 0.012,
+};
+
+export function convertCurrency(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string
+): number {
+  if (fromCurrency === toCurrency) return amount;
+  const fromRate = TO_USD[fromCurrency.toUpperCase()] ?? 1;
+  const toRate = TO_USD[toCurrency.toUpperCase()] ?? 1;
+  return (amount * fromRate) / toRate;
+}
+
+export function formatCurrency(
+  amount: string | number | null | undefined,
+  sourceCurrency?: string | null,
+  displayCurrency?: string | null
+) {
+  if (amount == null) return "—";
+  const numericAmount = typeof amount === "string" ? parseFloat(amount) : amount;
+  if (isNaN(numericAmount)) return "—";
+
+  const src = sourceCurrency ?? "USD";
+  const dst = displayCurrency ?? src;
+
+  const converted =
+    dst !== src ? convertCurrency(numericAmount, src, dst) : numericAmount;
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: dst,
+      maximumFractionDigits: dst === "KWD" ? 3 : 0,
+    }).format(converted);
+  } catch {
+    return converted.toFixed(2);
   }
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency,
-  }).format(numericAmount);
 }
 
 export function formatDateTime(isoString: string) {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
   }).format(new Date(isoString));
 }
 
 export function formatDate(isoString: string) {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(isoString));
+}
+
+export function formatShortDate(isoString: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
   }).format(new Date(isoString));
 }
 
 export function formatDuration(duration: string) {
-  // Parse ISO 8601 duration (e.g. PT2H30M)
   const match = duration.match(/PT(\d+H)?(\d+M)?/);
   if (!match) return duration;
-  
-  const hours = match[1] ? match[1].replace('H', '') : '0';
-  const minutes = match[2] ? match[2].replace('M', '') : '0';
-  
-  if (hours === '0') return `${minutes}m`;
+
+  const hours = match[1] ? match[1].replace("H", "") : "0";
+  const minutes = match[2] ? match[2].replace("M", "") : "0";
+
+  if (hours === "0") return `${minutes}m`;
   return `${hours}h ${minutes}m`;
 }
