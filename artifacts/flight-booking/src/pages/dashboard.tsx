@@ -161,30 +161,41 @@ export default function Dashboard() {
                     <Bell className="h-4 w-4 text-muted-foreground" /> Today's Follow-ups
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                   {crmData.todayFollowUps.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No follow-ups due today.</p>
+                    <p className="text-sm text-muted-foreground px-6 pb-4">No follow-ups due today.</p>
                   ) : (
-                    <div className="space-y-3">
-                      {crmData.todayFollowUps.map((f) => (
-                        <div key={f.id} className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="font-medium text-sm truncate">{f.customerName ?? "Unknown"}</div>
-                            <div className="text-xs text-muted-foreground line-clamp-1">{f.note}</div>
-                          </div>
-                          {f.customerId && (
-                            <Link href={`/customers/${f.customerId}`}>
-                              <span className="text-xs text-primary hover:underline flex items-center gap-0.5 flex-shrink-0">
-                                View <ChevronRight className="h-3 w-3" />
-                              </span>
-                            </Link>
-                          )}
-                        </div>
-                      ))}
-                      <Link href="/reminders" className="block text-xs text-primary hover:underline mt-2">
-                        View all reminders →
-                      </Link>
-                    </div>
+                    <>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Customer</TableHead>
+                            <TableHead>Note</TableHead>
+                            <TableHead className="text-right">Time</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {crmData.todayFollowUps.map((f) => (
+                            <TableRow key={f.id}>
+                              <TableCell className="text-sm font-medium truncate max-w-[90px]">
+                                {f.customerId ? (
+                                  <Link href={`/customers/${f.customerId}`}>
+                                    <span className="hover:underline cursor-pointer">{f.customerName ?? "Unknown"}</span>
+                                  </Link>
+                                ) : (f.customerName ?? "Unknown")}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground line-clamp-1 max-w-[110px]">{f.note}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground text-right whitespace-nowrap">
+                                {f.followUpDate ? formatDateTime(f.followUpDate).split(",")[1]?.trim() ?? "" : "—"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <div className="px-6 py-2 border-t">
+                        <Link href="/reminders" className="text-xs text-primary hover:underline">View all reminders →</Link>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>

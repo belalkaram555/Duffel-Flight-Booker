@@ -186,22 +186,14 @@ router.delete("/tickets/:id", async (req, res) => {
   }
 });
 
-router.post("/tickets/:id/payments", async (req, res) => {
-  const ticketId = Number(req.params.id);
-  if (isNaN(ticketId)) {
-    res.status(400).json({ error: "validation_error", message: "Invalid ticket ID" });
-    return;
-  }
-  const parsed = insertPaymentSchema.safeParse({ ...req.body, ticketId });
+async function handleAddPayment(ticketId: number, body: Record<string, unknown>, res: import("express").Response, log: import("pino").Logger) {
+  const parsed = insertPaymentSchema.safeParse({ ...body, ticketId });
   if (!parsed.success) {
     res.status(400).json({ error: "validation_error", message: parsed.error.message });
     return;
   }
   try {
-    const [existing] = await db
-      .select()
-      .from(ticketsTable)
-      .where(eq(ticketsTable.id, ticketId));
+    const [existing] = await db.select().from(ticketsTable).where(eq(ticketsTable.id, ticketId));
     if (!existing) {
       res.status(404).json({ error: "not_found", message: "Ticket not found" });
       return;
@@ -233,9 +225,28 @@ router.post("/tickets/:id/payments", async (req, res) => {
 
     res.status(201).json({ payment, paymentStatus: newPaymentStatus });
   } catch (err) {
-    req.log.error({ err }, "Error adding payment");
+    log.error({ err }, "Error adding payment");
     res.status(500).json({ error: "server_error", message: "Failed to add payment" });
   }
+}
+
+router.post("/payments", async (req, res) => {
+  const ticketId = Number((req.body as Record<string, unknown>).ticketId);
+  if (isNaN(ticketId)) {
+    res.status(400).json({ error: "validation_error", message: "ticketId is required" });
+    return;
+  }
+  await handleAddPayment(ticketId, req.body as Record<string, unknown>, res, req.log);
 });
+
+router.post("/tickets/:id/payments", async (req, res) => {
+  const ticketId = Number(req.params.id);
+  if (isNaN(ticketId)) {
+    res.status(400).json({ error: "validation_error", message: "Invalid ticket ID" });
+    return;
+  }
+  await handleAddPayment(ticketId, req.body as Record<string, unknown>, res, req.log);
+});
+
 
 export default router;

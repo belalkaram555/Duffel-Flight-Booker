@@ -103,10 +103,10 @@ async function cancelTicket(id: number): Promise<void> {
 }
 
 async function addPayment(ticketId: number, data: Record<string, unknown>): Promise<void> {
-  const res = await fetch(`${BASE}/api/tickets/${ticketId}/payments`, {
+  const res = await fetch(`${BASE}/api/payments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, ticketId }),
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json.message || "Failed to add payment");

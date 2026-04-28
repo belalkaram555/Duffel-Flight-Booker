@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, formatShortDate } from "@/lib/formatters";
 import {
   TICKET_STATUS_LABELS, PAYMENT_STATUS_LABELS,
   TICKET_STATUSES, PAYMENT_STATUSES, CURRENCIES,
@@ -340,6 +340,9 @@ export default function TicketForm() {
                   value={form.departureDatetime}
                   onChange={(e) => setField("departureDatetime", e.target.value)}
                 />
+                {form.departureDatetime && (
+                  <p className="text-xs text-muted-foreground">{formatShortDate(form.departureDatetime)}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Arrival</Label>
@@ -348,6 +351,9 @@ export default function TicketForm() {
                   value={form.arrivalDatetime}
                   onChange={(e) => setField("arrivalDatetime", e.target.value)}
                 />
+                {form.arrivalDatetime && (
+                  <p className="text-xs text-muted-foreground">{formatShortDate(form.arrivalDatetime)}</p>
+                )}
               </div>
             </div>
           </CardContent>
