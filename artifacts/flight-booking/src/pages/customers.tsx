@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
-import { Label } from "@/components/ui/label";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { formatShortDate } from "@/lib/formatters";
+import { CustomerForm, EMPTY_CUSTOMER_FORM } from "@/components/customer-form";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -60,33 +60,6 @@ interface Customer {
   updatedAt: string;
 }
 
-interface CustomerFormData {
-  fullName: string;
-  phone: string;
-  whatsapp: string;
-  email: string;
-  nationality: string;
-  passportNumber: string;
-  nationalId: string;
-  address: string;
-  source: string;
-  status: string;
-  assignedEmployeeId: string;
-}
-
-const DEFAULT_FORM: CustomerFormData = {
-  fullName: "",
-  phone: "",
-  whatsapp: "",
-  email: "",
-  nationality: "",
-  passportNumber: "",
-  nationalId: "",
-  address: "",
-  source: "walk_in",
-  status: "new",
-  assignedEmployeeId: "",
-};
 
 async function fetchCustomers(search: string, status: string): Promise<{ customers: Customer[] }> {
   const params = new URLSearchParams();
@@ -118,18 +91,14 @@ export function CustomerFormSheet({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [form, setForm] = useState<CustomerFormData>(DEFAULT_FORM);
-  const [errors, setErrors] = useState<Partial<CustomerFormData>>({});
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: createCustomer,
-    onSuccess: () => {
-      toast({ title: "Customer added", description: `${form.fullName} has been added.` });
+    onSuccess: (data) => {
+      toast({ title: "Customer added", description: `${data.customer.fullName} has been added.` });
       qc.invalidateQueries({ queryKey: ["customers"] });
-      setForm(DEFAULT_FORM);
-      setErrors({});
       onSuccess();
       onClose();
     },
@@ -138,128 +107,19 @@ export function CustomerFormSheet({
     },
   });
 
-  function set(field: keyof CustomerFormData, val: string) {
-    setForm((f) => ({ ...f, [field]: val }));
-    if (errors[field]) setErrors((e) => ({ ...e, [field]: "" }));
-  }
-
-  function validate(): boolean {
-    const errs: Partial<CustomerFormData> = {};
-    if (!form.fullName.trim()) errs.fullName = "Full name is required";
-    if (!form.phone.trim()) errs.phone = "Phone is required";
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!validate()) return;
-    const payload: Record<string, unknown> = {};
-    Object.entries(form).forEach(([k, v]) => {
-      if (k === "assignedEmployeeId") {
-        if (v) payload[k] = Number(v);
-      } else if (v) {
-        payload[k] = v;
-      }
-    });
-    mutation.mutate(payload);
-  }
-
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Add New Customer</SheetTitle>
         </SheetHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="fullName">Full Name *</Label>
-            <Input id="fullName" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Ahmed Hassan" />
-            {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="phone">Phone *</Label>
-              <Input id="phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+201012345678" />
-              {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="whatsapp">WhatsApp</Label>
-              <Input id="whatsapp" value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} placeholder="+201012345678" />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="ahmed@example.com" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="nationality">Nationality</Label>
-              <Input id="nationality" value={form.nationality} onChange={(e) => set("nationality", e.target.value)} placeholder="Egyptian" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="passportNumber">Passport No.</Label>
-              <Input id="passportNumber" value={form.passportNumber} onChange={(e) => set("passportNumber", e.target.value)} placeholder="A12345678" />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="nationalId">National ID</Label>
-            <Input id="nationalId" value={form.nationalId} onChange={(e) => set("nationalId", e.target.value)} placeholder="29901011234567" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="address">Address</Label>
-            <Input id="address" value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Cairo, Egypt" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Source</Label>
-              <Select value={form.source} onValueChange={(v) => set("source", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CUSTOMER_SOURCES.map((s) => (
-                    <SelectItem key={s} value={s}>{SOURCE_LABELS[s]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => set("status", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CUSTOMER_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="assignedEmployeeId">Assigned Employee ID</Label>
-            <Input
-              id="assignedEmployeeId"
-              type="number"
-              min={1}
-              value={form.assignedEmployeeId}
-              onChange={(e) => set("assignedEmployeeId", e.target.value)}
-              placeholder="Employee ID (optional)"
-            />
-          </div>
-
-          <SheetFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>Cancel</Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Saving..." : "Add Customer"}
-            </Button>
-          </SheetFooter>
-        </form>
+        <CustomerForm
+          initialValues={EMPTY_CUSTOMER_FORM}
+          submitLabel="Add Customer"
+          isPending={mutation.isPending}
+          onSubmit={(data) => mutation.mutate(data)}
+          onCancel={onClose}
+        />
       </SheetContent>
     </Sheet>
   );

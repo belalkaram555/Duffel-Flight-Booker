@@ -1,0 +1,161 @@
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SheetFooter } from "@/components/ui/sheet";
+import { STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES, CUSTOMER_SOURCES } from "@/pages/customers";
+
+export interface CustomerFormData {
+  fullName: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
+  nationality: string;
+  passportNumber: string;
+  nationalId: string;
+  address: string;
+  source: string;
+  status: string;
+  assignedEmployeeId: string;
+}
+
+export const EMPTY_CUSTOMER_FORM: CustomerFormData = {
+  fullName: "",
+  phone: "",
+  whatsapp: "",
+  email: "",
+  nationality: "",
+  passportNumber: "",
+  nationalId: "",
+  address: "",
+  source: "walk_in",
+  status: "new",
+  assignedEmployeeId: "",
+};
+
+interface Props {
+  initialValues?: Partial<CustomerFormData>;
+  submitLabel: string;
+  isPending: boolean;
+  onSubmit: (data: Record<string, unknown>) => void;
+  onCancel: () => void;
+}
+
+export function CustomerForm({ initialValues, submitLabel, isPending, onSubmit, onCancel }: Props) {
+  const [form, setForm] = useState<CustomerFormData>({ ...EMPTY_CUSTOMER_FORM, ...initialValues });
+  const [errors, setErrors] = useState<Partial<CustomerFormData>>({});
+
+  function set(field: keyof CustomerFormData, val: string) {
+    setForm((f) => ({ ...f, [field]: val }));
+    if (errors[field]) setErrors((e) => ({ ...e, [field]: "" }));
+  }
+
+  function validate(): boolean {
+    const errs: Partial<CustomerFormData> = {};
+    if (!form.fullName.trim()) errs.fullName = "Full name is required";
+    if (!form.phone.trim()) errs.phone = "Phone is required";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    const payload: Record<string, unknown> = {};
+    Object.entries(form).forEach(([k, v]) => {
+      if (k === "assignedEmployeeId") {
+        if (v) payload[k] = Number(v);
+      } else if (v) {
+        payload[k] = v;
+      }
+    });
+    onSubmit(payload);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 py-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="cf-fullName">Full Name *</Label>
+        <Input id="cf-fullName" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Ahmed Hassan" />
+        {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="cf-phone">Phone *</Label>
+          <Input id="cf-phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+201012345678" />
+          {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="cf-whatsapp">WhatsApp</Label>
+          <Input id="cf-whatsapp" value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} placeholder="+201012345678" />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cf-email">Email</Label>
+        <Input id="cf-email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="ahmed@example.com" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="cf-nationality">Nationality</Label>
+          <Input id="cf-nationality" value={form.nationality} onChange={(e) => set("nationality", e.target.value)} placeholder="Egyptian" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="cf-passportNumber">Passport No.</Label>
+          <Input id="cf-passportNumber" value={form.passportNumber} onChange={(e) => set("passportNumber", e.target.value)} placeholder="A12345678" />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cf-nationalId">National ID</Label>
+        <Input id="cf-nationalId" value={form.nationalId} onChange={(e) => set("nationalId", e.target.value)} placeholder="29901011234567" />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cf-address">Address</Label>
+        <Input id="cf-address" value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Cairo, Egypt" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>Source</Label>
+          <Select value={form.source} onValueChange={(v) => set("source", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {CUSTOMER_SOURCES.map((s) => <SelectItem key={s} value={s}>{SOURCE_LABELS[s]}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Status</Label>
+          <Select value={form.status} onValueChange={(v) => set("status", v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {CUSTOMER_STATUSES.map((s) => <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cf-assignedEmployeeId">Assigned Employee ID</Label>
+        <Input
+          id="cf-assignedEmployeeId"
+          type="number"
+          min={1}
+          value={form.assignedEmployeeId}
+          onChange={(e) => set("assignedEmployeeId", e.target.value)}
+          placeholder="Employee ID (optional)"
+        />
+      </div>
+
+      <SheetFooter className="pt-2">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Cancel</Button>
+        <Button type="submit" disabled={isPending}>{isPending ? "Saving..." : submitLabel}</Button>
+      </SheetFooter>
+    </form>
+  );
+}

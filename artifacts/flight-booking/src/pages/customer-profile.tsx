@@ -12,14 +12,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatShortDate, formatDateTime } from "@/lib/formatters";
-import { STATUS_COLORS, STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES, CUSTOMER_SOURCES } from "./customers";
+import { STATUS_COLORS, STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES } from "./customers";
+import { CustomerForm } from "@/components/customer-form";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -114,20 +115,6 @@ async function updateNote(noteId: number, data: { followUpStatus?: string }): Pr
 }
 
 function EditCustomerSheet({ customer, open, onClose }: { customer: Customer; open: boolean; onClose: () => void }) {
-  const [form, setForm] = useState({
-    fullName: customer.fullName,
-    phone: customer.phone ?? "",
-    whatsapp: customer.whatsapp ?? "",
-    email: customer.email ?? "",
-    nationality: customer.nationality ?? "",
-    passportNumber: customer.passportNumber ?? "",
-    nationalId: customer.nationalId ?? "",
-    address: customer.address ?? "",
-    source: customer.source ?? "other",
-    status: customer.status,
-    assignedEmployeeId: customer.assignedEmployeeId?.toString() ?? "",
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -142,108 +129,29 @@ function EditCustomerSheet({ customer, open, onClose }: { customer: Customer; op
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  function set(field: string, val: string) {
-    setForm((f) => ({ ...f, [field]: val }));
-    if (errors[field]) setErrors((e) => ({ ...e, [field]: "" }));
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const errs: Record<string, string> = {};
-    if (!form.fullName.trim()) errs.fullName = "Full name is required";
-    if (!form.phone.trim()) errs.phone = "Phone is required";
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-    const payload: Record<string, unknown> = {};
-    Object.entries(form).forEach(([k, v]) => {
-      if (k === "assignedEmployeeId") {
-        if (v) payload[k] = Number(v);
-      } else if (v) {
-        payload[k] = v;
-      }
-    });
-    mutation.mutate(payload);
-  }
-
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader><SheetTitle>Edit Customer</SheetTitle></SheetHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-1.5">
-            <Label>Full Name *</Label>
-            <Input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} />
-            {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Phone *</Label>
-              <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} />
-              {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label>WhatsApp</Label>
-              <Input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Email</Label>
-            <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Nationality</Label>
-              <Input value={form.nationality} onChange={(e) => set("nationality", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Passport No.</Label>
-              <Input value={form.passportNumber} onChange={(e) => set("passportNumber", e.target.value)} />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>National ID</Label>
-            <Input value={form.nationalId} onChange={(e) => set("nationalId", e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Address</Label>
-            <Input value={form.address} onChange={(e) => set("address", e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Source</Label>
-              <Select value={form.source} onValueChange={(v) => set("source", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CUSTOMER_SOURCES.map((s) => <SelectItem key={s} value={s}>{SOURCE_LABELS[s]}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => set("status", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CUSTOMER_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Assigned Employee ID</Label>
-            <Input
-              type="number"
-              min={1}
-              value={form.assignedEmployeeId}
-              onChange={(e) => set("assignedEmployeeId", e.target.value)}
-              placeholder="Employee ID (optional)"
-            />
-          </div>
-          <SheetFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>Cancel</Button>
-            <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Saving..." : "Save Changes"}</Button>
-          </SheetFooter>
-        </form>
+        <CustomerForm
+          initialValues={{
+            fullName: customer.fullName,
+            phone: customer.phone ?? "",
+            whatsapp: customer.whatsapp ?? "",
+            email: customer.email ?? "",
+            nationality: customer.nationality ?? "",
+            passportNumber: customer.passportNumber ?? "",
+            nationalId: customer.nationalId ?? "",
+            address: customer.address ?? "",
+            source: customer.source ?? "other",
+            status: customer.status,
+            assignedEmployeeId: customer.assignedEmployeeId?.toString() ?? "",
+          }}
+          submitLabel="Save Changes"
+          isPending={mutation.isPending}
+          onSubmit={(data) => mutation.mutate(data)}
+          onCancel={onClose}
+        />
       </SheetContent>
     </Sheet>
   );
