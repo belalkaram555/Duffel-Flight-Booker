@@ -1,149 +1,358 @@
+import { useQuery } from "@tanstack/react-query";
 import { useGetStatsSummary } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/formatters";
-import { Plane, TrendingUp, XCircle, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
+import { formatCurrency, formatShortDate, formatDateTime } from "@/lib/formatters";
+import {
+  Users, Tag, TrendingUp, Plane, CheckCircle2, XCircle, AlertCircle,
+  Bell, Clock, ChevronRight, CreditCard,
+} from "lucide-react";
+import { TICKET_STATUS_COLORS, TICKET_STATUS_LABELS, PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS } from "@/lib/ticket-constants";
+import { STATUS_COLORS, STATUS_LABELS } from "@/lib/customer-constants";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+interface DashboardStats {
+  customers: {
+    total: number;
+    newToday: number;
+    followUpsToday: number;
+    missedFollowUps: number;
+    byStatus: Record<string, number>;
+  };
+  totalRevenue: string;
+  tickets: {
+    total: number;
+    quoted: number;
+    reserved: number;
+    confirmed: number;
+    paid: number;
+    issued: number;
+    cancelled: number;
+    refunded: number;
+    unpaid: number;
+    partiallyPaid: number;
+  };
+  recentCustomers: Array<{
+    id: number;
+    fullName: string;
+    status: string;
+    source: string | null;
+    phone: string | null;
+    createdAt: string;
+  }>;
+  recentTickets: Array<{
+    id: number;
+    customerId: number;
+    customerName: string | null;
+    flightRoute: string | null;
+    ticketStatus: string;
+    paymentStatus: string;
+    price: string | null;
+    currency: string | null;
+    updatedAt: string;
+  }>;
+  todayFollowUps: Array<{
+    id: number;
+    customerId: number | null;
+    customerName: string | null;
+    note: string;
+    followUpDate: string | null;
+    followUpStatus: string | null;
+  }>;
+}
+
+async function fetchDashboardStats(): Promise<DashboardStats> {
+  const res = await fetch(`${BASE}/api/dashboard/stats`);
+  if (!res.ok) throw new Error("Failed to fetch dashboard stats");
+  return res.json();
+}
+
+function StatCard({
+  title,
+  value,
+  icon,
+  color,
+  href,
+}: {
+  title: string;
+  value: number | string;
+  icon: React.ReactNode;
+  color?: string;
+  href?: string;
+}) {
+  const inner = (
+    <Card className={href ? "hover:shadow-md transition-shadow cursor-pointer" : ""}>
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-muted-foreground">{title}</span>
+          <span className={`${color ?? "text-muted-foreground"}`}>{icon}</span>
+        </div>
+        <div className="text-2xl font-bold">{value}</div>
+      </CardContent>
+    </Card>
+  );
+  if (href) return <Link href={href}>{inner}</Link>;
+  return inner;
+}
+
+function SectionSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {[...Array(4)].map((_, i) => (
+        <Card key={i}>
+          <CardContent className="p-5">
+            <Skeleton className="h-4 w-24 mb-3" />
+            <Skeleton className="h-8 w-16" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export default function Dashboard() {
-  const { data: stats, isLoading, isError } = useGetStatsSummary();
+  const { data: crmData, isLoading: crmLoading, isError: crmError } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: fetchDashboardStats,
+    staleTime: 30_000,
+  });
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-4 rounded-full" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-20 mb-1" />
-                <Skeleton className="h-3 w-32" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (isError || !stats) {
-    return <div className="text-destructive">Failed to load statistics.</div>;
-  }
+  const { data: flightStats, isLoading: flightLoading, isError: flightError } = useGetStatsSummary();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
-        <p className="text-muted-foreground mt-1">Key metrics and recent system activity.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground mt-1">CRM and flight booking overview.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-            <TrendingUp className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue, stats.currency)}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Bookings</CardTitle>
-            <Plane className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalOrders}</div>
-          </CardContent>
-        </Card>
+      <section className="space-y-5">
+        <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+          <Users className="h-5 w-5 text-primary" /> CRM Stats
+        </h2>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Confirmed Bookings</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.confirmedOrders}</div>
-          </CardContent>
-        </Card>
+        {crmLoading && <SectionSkeleton />}
+        {crmError && <div className="text-destructive text-sm">Failed to load CRM stats.</div>}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Cancellations</CardTitle>
-            <XCircle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.cancelledOrders}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="md:col-span-2 lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Recent Orders</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats.recentOrders?.map((order) => (
-                <div key={order.id} className="flex items-center justify-between border-b border-border pb-4 last:pb-0 last:border-0">
-                  <div>
-                    <div className="font-medium">{order.bookingReference}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {order.slices?.[0]?.origin.iataCode} - {order.slices?.[0]?.destination.iataCode}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-medium">{formatCurrency(order.totalAmount, order.totalCurrency)}</div>
-                    <div className="text-sm">
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${
-                        order.status === 'CONFIRMED' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                        order.status === 'CANCELLED' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
-                        'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+        {crmData && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard title="Total Customers" value={crmData.customers.total} icon={<Users className="h-4 w-4" />} color="text-primary" href="/customers" />
+              <StatCard title="New Today" value={crmData.customers.newToday} icon={<Users className="h-4 w-4" />} color="text-blue-500" href="/customers" />
+              <StatCard title="Follow-ups Today" value={crmData.customers.followUpsToday} icon={<Bell className="h-4 w-4" />} color="text-yellow-500" href="/reminders" />
+              <StatCard title="Missed Follow-ups" value={crmData.customers.missedFollowUps} icon={<AlertCircle className="h-4 w-4" />} color="text-destructive" href="/reminders" />
             </div>
-            <div className="mt-4 pt-4 border-t border-border">
-              <Link href="/orders" className="text-sm text-primary hover:underline font-medium">
-                View all orders &rarr;
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card className="md:col-span-2 lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Top Routes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats.topRoutes?.map((route, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-8 h-8 rounded bg-muted">
-                      <Plane className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <div className="font-medium">{route.origin} &rarr; {route.destination}</div>
-                    </div>
-                  </div>
-                  <div className="font-medium">{route.count} bookings</div>
-                </div>
-              ))}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <StatCard title="Total Tickets" value={crmData.tickets.total} icon={<Tag className="h-4 w-4" />} color="text-primary" href="/tickets" />
+              <StatCard title="Confirmed" value={crmData.tickets.confirmed} icon={<CheckCircle2 className="h-4 w-4" />} color="text-green-500" href="/tickets" />
+              <StatCard title="Issued" value={crmData.tickets.issued} icon={<CheckCircle2 className="h-4 w-4" />} color="text-emerald-500" href="/tickets" />
+              <StatCard title="Cancelled" value={crmData.tickets.cancelled} icon={<XCircle className="h-4 w-4" />} color="text-destructive" href="/tickets" />
+              <StatCard title="Unpaid" value={crmData.tickets.unpaid} icon={<CreditCard className="h-4 w-4" />} color="text-yellow-600" href="/tickets" />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="lg:col-span-1">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Bell className="h-4 w-4 text-muted-foreground" /> Today's Follow-ups
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {crmData.todayFollowUps.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No follow-ups due today.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {crmData.todayFollowUps.map((f) => (
+                        <div key={f.id} className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm truncate">{f.customerName ?? "Unknown"}</div>
+                            <div className="text-xs text-muted-foreground line-clamp-1">{f.note}</div>
+                          </div>
+                          {f.customerId && (
+                            <Link href={`/customers/${f.customerId}`}>
+                              <span className="text-xs text-primary hover:underline flex items-center gap-0.5 flex-shrink-0">
+                                View <ChevronRight className="h-3 w-3" />
+                              </span>
+                            </Link>
+                          )}
+                        </div>
+                      ))}
+                      <Link href="/reminders" className="block text-xs text-primary hover:underline mt-2">
+                        View all reminders →
+                      </Link>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-1">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" /> Recent Customers
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {crmData.recentCustomers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No customers yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {crmData.recentCustomers.map((c) => (
+                        <Link key={c.id} href={`/customers/${c.id}`}>
+                          <div className="flex items-center justify-between py-1.5 hover:bg-muted/30 rounded px-1 transition-colors">
+                            <div className="min-w-0">
+                              <div className="font-medium text-sm truncate">{c.fullName}</div>
+                              <div className="text-xs text-muted-foreground">{formatShortDate(c.createdAt)}</div>
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-700"}`}>
+                              {STATUS_LABELS[c.status] ?? c.status}
+                            </span>
+                          </div>
+                        </Link>
+                      ))}
+                      <Link href="/customers" className="block text-xs text-primary hover:underline mt-1">
+                        View all customers →
+                      </Link>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-1">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-muted-foreground" /> Recent Tickets
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {crmData.recentTickets.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No tickets yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {crmData.recentTickets.map((t) => (
+                        <Link key={t.id} href={`/tickets/${t.id}`}>
+                          <div className="flex items-center justify-between py-1.5 hover:bg-muted/30 rounded px-1 transition-colors">
+                            <div className="min-w-0">
+                              <div className="font-medium text-sm truncate">{t.customerName ?? `Ticket #${t.id}`}</div>
+                              <div className="text-xs text-muted-foreground">{t.flightRoute ?? "—"}</div>
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${TICKET_STATUS_COLORS[t.ticketStatus] ?? ""}`}>
+                              {TICKET_STATUS_LABELS[t.ticketStatus] ?? t.ticketStatus}
+                            </span>
+                          </div>
+                        </Link>
+                      ))}
+                      <Link href="/tickets" className="block text-xs text-primary hover:underline mt-1">
+                        View all tickets →
+                      </Link>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="space-y-5">
+        <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+          <Plane className="h-5 w-5 text-blue-500" /> Flight Booking Stats
+        </h2>
+
+        {flightLoading && <SectionSkeleton />}
+        {flightError && <div className="text-destructive text-sm">Failed to load flight booking stats.</div>}
+
+        {flightStats && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                title="Total Revenue"
+                value={formatCurrency(flightStats.totalRevenue, flightStats.currency)}
+                icon={<TrendingUp className="h-4 w-4" />}
+                color="text-primary"
+              />
+              <StatCard
+                title="Total Bookings"
+                value={flightStats.totalOrders}
+                icon={<Plane className="h-4 w-4" />}
+                color="text-blue-500"
+              />
+              <StatCard
+                title="Confirmed Bookings"
+                value={flightStats.confirmedOrders}
+                icon={<CheckCircle2 className="h-4 w-4" />}
+                color="text-green-500"
+              />
+              <StatCard
+                title="Cancellations"
+                value={flightStats.cancelledOrders}
+                icon={<XCircle className="h-4 w-4" />}
+                color="text-destructive"
+              />
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+              <Card className="md:col-span-1 lg:col-span-4">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Recent Orders</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {flightStats.recentOrders?.map((order) => (
+                      <div key={order.id} className="flex items-center justify-between border-b border-border pb-3 last:pb-0 last:border-0">
+                        <div>
+                          <div className="font-medium text-sm">{order.bookingReference}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {order.slices?.[0]?.origin.iataCode} → {order.slices?.[0]?.destination.iataCode}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium text-sm">{formatCurrency(order.totalAmount, order.totalCurrency)}</div>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            order.status === "confirmed" ? "bg-green-100 text-green-800" :
+                            order.status === "cancelled" ? "bg-red-100 text-red-800" :
+                            "bg-gray-100 text-gray-700"
+                          }`}>
+                            {order.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-3 border-t">
+                    <Link href="/orders" className="text-sm text-primary hover:underline font-medium">
+                      View all orders →
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="md:col-span-1 lg:col-span-3">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Top Routes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {flightStats.topRoutes?.map((route, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                            <Plane className="w-3.5 h-3.5 text-muted-foreground" />
+                          </div>
+                          <span className="text-sm font-medium">{route.origin} → {route.destination}</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">{route.count} bookings</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }

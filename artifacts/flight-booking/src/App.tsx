@@ -13,6 +13,10 @@ import Checkout from "@/pages/checkout";
 import OrderDetail from "@/pages/order-detail";
 import Customers from "@/pages/customers";
 import CustomerProfile from "@/pages/customer-profile";
+import Tickets from "@/pages/tickets";
+import TicketForm from "@/pages/ticket-form";
+import TicketDetail from "@/pages/ticket-detail";
+import Reminders from "@/pages/reminders";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +30,11 @@ function Router() {
         <Route path="/offers/:offerId" component={OfferDetail} />
         <Route path="/customers" component={Customers} />
         <Route path="/customers/:id" component={CustomerProfile} />
+        <Route path="/tickets/new" component={TicketForm} />
+        <Route path="/tickets/:id/edit" component={TicketForm} />
+        <Route path="/tickets/:id" component={TicketDetail} />
+        <Route path="/tickets" component={Tickets} />
+        <Route path="/reminders" component={Reminders} />
         <Route path="/orders" component={Orders} />
         <Route path="/orders/new" component={Checkout} />
         <Route path="/orders/:orderId" component={OrderDetail} />

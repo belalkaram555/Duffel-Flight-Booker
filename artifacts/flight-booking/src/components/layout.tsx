@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Plane, Search, ListFilter, LayoutDashboard, Menu, X, Users } from "lucide-react";
+import { Plane, Search, ListFilter, LayoutDashboard, Menu, X, Users, Tag, Bell } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/customers", label: "Customers", icon: Users },
+    { href: "/tickets", label: "Tickets", icon: Tag },
+    { href: "/reminders", label: "Reminders", icon: Bell },
     { href: "/search", label: "Flight Search", icon: Search },
     { href: "/orders", label: "Orders", icon: ListFilter },
   ];
