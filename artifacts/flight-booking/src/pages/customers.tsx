@@ -2,10 +2,9 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Users, Plus, Search, ChevronRight, Phone, Mail } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
@@ -17,21 +16,29 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const STATUS_COLORS: Record<string, string> = {
   new: "bg-blue-100 text-blue-800",
-  contacted: "bg-yellow-100 text-yellow-800",
-  quoted: "bg-purple-100 text-purple-800",
+  interested: "bg-yellow-100 text-yellow-800",
+  follow_up: "bg-purple-100 text-purple-800",
   booked: "bg-green-100 text-green-800",
-  completed: "bg-emerald-100 text-emerald-800",
-  inactive: "bg-gray-100 text-gray-600",
+  cancelled: "bg-red-100 text-red-800",
+  lost: "bg-gray-100 text-gray-600",
 };
 
-const CUSTOMER_STATUSES = ["new", "contacted", "quoted", "booked", "completed", "inactive"];
-const CUSTOMER_SOURCES = ["walk_in", "referral", "social_media", "phone", "website", "other"];
+const STATUS_LABELS: Record<string, string> = {
+  new: "New",
+  interested: "Interested",
+  follow_up: "Follow-up",
+  booked: "Booked",
+  cancelled: "Cancelled",
+  lost: "Lost",
+};
+
+const CUSTOMER_STATUSES = ["new", "interested", "follow_up", "booked", "cancelled", "lost"];
+const CUSTOMER_SOURCES = ["facebook", "whatsapp", "walk_in", "referral", "other"];
 const SOURCE_LABELS: Record<string, string> = {
+  facebook: "Facebook",
+  whatsapp: "WhatsApp",
   walk_in: "Walk-in",
   referral: "Referral",
-  social_media: "Social Media",
-  phone: "Phone",
-  website: "Website",
   other: "Other",
 };
 
@@ -42,7 +49,7 @@ interface Customer {
   whatsapp: string | null;
   email: string | null;
   nationality: string | null;
-  passport: string | null;
+  passportNumber: string | null;
   nationalId: string | null;
   address: string | null;
   source: string | null;
@@ -59,11 +66,12 @@ interface CustomerFormData {
   whatsapp: string;
   email: string;
   nationality: string;
-  passport: string;
+  passportNumber: string;
   nationalId: string;
   address: string;
   source: string;
   status: string;
+  assignedEmployeeId: string;
 }
 
 const DEFAULT_FORM: CustomerFormData = {
@@ -72,11 +80,12 @@ const DEFAULT_FORM: CustomerFormData = {
   whatsapp: "",
   email: "",
   nationality: "",
-  passport: "",
+  passportNumber: "",
   nationalId: "",
   address: "",
   source: "walk_in",
   status: "new",
+  assignedEmployeeId: "",
 };
 
 async function fetchCustomers(search: string, status: string): Promise<{ customers: Customer[] }> {
@@ -89,7 +98,7 @@ async function fetchCustomers(search: string, status: string): Promise<{ custome
   return res.json();
 }
 
-async function createCustomer(data: Partial<CustomerFormData>): Promise<{ customer: Customer }> {
+async function createCustomer(data: Record<string, unknown>): Promise<{ customer: Customer }> {
   const res = await fetch(`${BASE}/api/customers`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -100,7 +109,7 @@ async function createCustomer(data: Partial<CustomerFormData>): Promise<{ custom
   return json;
 }
 
-function CustomerFormSheet({
+export function CustomerFormSheet({
   open,
   onClose,
   onSuccess,
@@ -145,9 +154,13 @@ function CustomerFormSheet({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
-    const payload: Record<string, string> = {};
-    (Object.keys(form) as (keyof CustomerFormData)[]).forEach((k) => {
-      if (form[k]) payload[k] = form[k];
+    const payload: Record<string, unknown> = {};
+    Object.entries(form).forEach(([k, v]) => {
+      if (k === "assignedEmployeeId") {
+        if (v) payload[k] = Number(v);
+      } else if (v) {
+        payload[k] = v;
+      }
     });
     mutation.mutate(payload);
   }
@@ -159,75 +172,85 @@ function CustomerFormSheet({
           <SheetTitle>Add New Customer</SheetTitle>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="grid grid-cols-1 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="fullName">Full Name *</Label>
+            <Input id="fullName" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Ahmed Hassan" />
+            {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="fullName">Full Name *</Label>
-              <Input id="fullName" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Ahmed Hassan" />
-              {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
+              <Label htmlFor="phone">Phone *</Label>
+              <Input id="phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+201012345678" />
+              {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="phone">Phone *</Label>
-                <Input id="phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="+201012345678" />
-                {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="whatsapp">WhatsApp</Label>
-                <Input id="whatsapp" value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} placeholder="+201012345678" />
-              </div>
-            </div>
-
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="ahmed@example.com" />
+              <Label htmlFor="whatsapp">WhatsApp</Label>
+              <Input id="whatsapp" value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} placeholder="+201012345678" />
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="nationality">Nationality</Label>
-                <Input id="nationality" value={form.nationality} onChange={(e) => set("nationality", e.target.value)} placeholder="Egyptian" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="passport">Passport No.</Label>
-                <Input id="passport" value={form.passport} onChange={(e) => set("passport", e.target.value)} placeholder="A12345678" />
-              </div>
-            </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="ahmed@example.com" />
+          </div>
 
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="nationalId">National ID</Label>
-              <Input id="nationalId" value={form.nationalId} onChange={(e) => set("nationalId", e.target.value)} placeholder="29901011234567" />
+              <Label htmlFor="nationality">Nationality</Label>
+              <Input id="nationality" value={form.nationality} onChange={(e) => set("nationality", e.target.value)} placeholder="Egyptian" />
             </div>
-
             <div className="space-y-1.5">
-              <Label htmlFor="address">Address</Label>
-              <Input id="address" value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Cairo, Egypt" />
+              <Label htmlFor="passportNumber">Passport No.</Label>
+              <Input id="passportNumber" value={form.passportNumber} onChange={(e) => set("passportNumber", e.target.value)} placeholder="A12345678" />
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Source</Label>
-                <Select value={form.source} onValueChange={(v) => set("source", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CUSTOMER_SOURCES.map((s) => (
-                      <SelectItem key={s} value={s}>{SOURCE_LABELS[s]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => set("status", v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CUSTOMER_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="nationalId">National ID</Label>
+            <Input id="nationalId" value={form.nationalId} onChange={(e) => set("nationalId", e.target.value)} placeholder="29901011234567" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="address">Address</Label>
+            <Input id="address" value={form.address} onChange={(e) => set("address", e.target.value)} placeholder="Cairo, Egypt" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Source</Label>
+              <Select value={form.source} onValueChange={(v) => set("source", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CUSTOMER_SOURCES.map((s) => (
+                    <SelectItem key={s} value={s}>{SOURCE_LABELS[s]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => set("status", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CUSTOMER_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="assignedEmployeeId">Assigned Employee ID</Label>
+            <Input
+              id="assignedEmployeeId"
+              type="number"
+              min={1}
+              value={form.assignedEmployeeId}
+              onChange={(e) => set("assignedEmployeeId", e.target.value)}
+              placeholder="Employee ID (optional)"
+            />
           </div>
 
           <SheetFooter className="pt-2">
@@ -242,16 +265,16 @@ function CustomerFormSheet({
   );
 }
 
+export { STATUS_COLORS, STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES, CUSTOMER_SOURCES };
+
 export default function Customers() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [addOpen, setAddOpen] = useState(false);
 
-  const debouncedSearch = search;
-
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["customers", debouncedSearch, statusFilter],
-    queryFn: () => fetchCustomers(debouncedSearch, statusFilter),
+    queryKey: ["customers", search, statusFilter],
+    queryFn: () => fetchCustomers(search, statusFilter),
     staleTime: 30_000,
   });
 
@@ -282,13 +305,13 @@ export default function Customers() {
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40">
+              <SelectTrigger className="w-full sm:w-44">
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 {CUSTOMER_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                  <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -297,14 +320,13 @@ export default function Customers() {
 
         <CardContent className="p-0">
           {isLoading && (
-            <div className="space-y-0">
+            <div>
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center justify-between px-6 py-4 border-b last:border-0">
-                  <div className="space-y-1.5">
-                    <Skeleton className="h-4 w-36" />
-                    <Skeleton className="h-3 w-24" />
-                  </div>
-                  <Skeleton className="h-6 w-16 rounded-full" />
+                <div key={i} className="flex items-center gap-4 px-6 py-3 border-b last:border-0">
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-6 w-16 rounded-full ml-auto" />
                 </div>
               ))}
             </div>
@@ -325,55 +347,73 @@ export default function Customers() {
           )}
 
           {!isLoading && customers.length > 0 && (
-            <div className="divide-y">
-              {customers.map((c) => (
-                <Link key={c.id} href={`/customers/${c.id}`}>
-                  <div className="flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors cursor-pointer group">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold"
-                        style={{ background: "linear-gradient(135deg, #d4af37 0%, #f5d76e 50%, #d4af37 100%)", color: "#022c22" }}>
-                        {c.fullName.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-semibold truncate group-hover:text-primary transition-colors">{c.fullName}</div>
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground mt-0.5">
-                          {c.phone && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" /> {c.phone}
-                            </span>
-                          )}
-                          {c.email && (
-                            <span className="hidden sm:flex items-center gap-1 truncate">
-                              <Mail className="h-3 w-3" /> {c.email}
-                            </span>
+            <>
+              {/* Table header */}
+              <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] gap-4 px-6 py-2 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <span>Name</span>
+                <span>Phone / Email</span>
+                <span>Status</span>
+                <span>Source</span>
+                <span>Last Contacted</span>
+                <span className="w-6" />
+              </div>
+
+              <div className="divide-y">
+                {customers.map((c) => (
+                  <Link key={c.id} href={`/customers/${c.id}`}>
+                    <div className="grid md:grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] grid-cols-1 gap-2 md:gap-4 px-6 py-3.5 hover:bg-muted/30 transition-colors cursor-pointer group items-center">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
+                          style={{ background: "linear-gradient(135deg, #d4af37 0%, #f5d76e 50%, #d4af37 100%)", color: "#022c22" }}>
+                          {c.fullName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-semibold truncate group-hover:text-primary transition-colors text-sm">{c.fullName}</div>
+                          {c.assignedEmployeeId && (
+                            <div className="text-xs text-muted-foreground">Emp #{c.assignedEmployeeId}</div>
                           )}
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="hidden md:flex flex-col items-end text-right">
-                        {c.source && (
-                          <span className="text-xs text-muted-foreground">{SOURCE_LABELS[c.source] ?? c.source}</span>
+
+                      <div className="min-w-0 hidden md:block">
+                        {c.phone && (
+                          <div className="flex items-center gap-1 text-sm truncate">
+                            <Phone className="h-3 w-3 flex-shrink-0 text-muted-foreground" /> {c.phone}
+                          </div>
                         )}
-                        {c.lastContactedAt && (
-                          <span className="text-xs text-muted-foreground">Last: {formatShortDate(c.lastContactedAt)}</span>
+                        {c.email && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+                            <Mail className="h-3 w-3 flex-shrink-0" /> {c.email}
+                          </div>
                         )}
                       </div>
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
-                        {c.status}
-                      </span>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
 
-          {!isLoading && customers.length > 0 && (
-            <div className="px-6 py-3 border-t text-xs text-muted-foreground">
-              {customers.length} customer{customers.length !== 1 ? "s" : ""}
-            </div>
+                      <div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                          {STATUS_LABELS[c.status] ?? c.status}
+                        </span>
+                      </div>
+
+                      <div className="hidden md:block text-sm text-muted-foreground">
+                        {c.source ? (SOURCE_LABELS[c.source] ?? c.source) : "—"}
+                      </div>
+
+                      <div className="hidden md:block text-sm text-muted-foreground">
+                        {c.lastContactedAt ? formatShortDate(c.lastContactedAt) : "—"}
+                      </div>
+
+                      <div className="hidden md:flex justify-end">
+                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              <div className="px-6 py-3 border-t text-xs text-muted-foreground">
+                {customers.length} customer{customers.length !== 1 ? "s" : ""}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, useLocation, Link } from "wouter";
 import {
@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,29 +19,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatShortDate, formatDateTime } from "@/lib/formatters";
+import { STATUS_COLORS, STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES, CUSTOMER_SOURCES } from "./customers";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-const STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-100 text-blue-800",
-  contacted: "bg-yellow-100 text-yellow-800",
-  quoted: "bg-purple-100 text-purple-800",
-  booked: "bg-green-100 text-green-800",
-  completed: "bg-emerald-100 text-emerald-800",
-  inactive: "bg-gray-100 text-gray-600",
-};
-
-const FOLLOW_UP_STATUS_COLORS: Record<string, { cls: string; label: string; icon: React.ReactNode }> = {
+const FOLLOW_UP_STATUS_STYLES: Record<string, { cls: string; label: string; icon: React.ReactNode }> = {
   pending: { cls: "bg-yellow-100 text-yellow-800", label: "Pending", icon: <Clock className="h-3 w-3" /> },
   done: { cls: "bg-green-100 text-green-800", label: "Done", icon: <Check className="h-3 w-3" /> },
   missed: { cls: "bg-red-100 text-red-800", label: "Missed", icon: <AlertCircle className="h-3 w-3" /> },
-};
-
-const CUSTOMER_STATUSES = ["new", "contacted", "quoted", "booked", "completed", "inactive"];
-const CUSTOMER_SOURCES = ["walk_in", "referral", "social_media", "phone", "website", "other"];
-const SOURCE_LABELS: Record<string, string> = {
-  walk_in: "Walk-in", referral: "Referral", social_media: "Social Media",
-  phone: "Phone", website: "Website", other: "Other",
 };
 
 interface Customer {
@@ -52,7 +36,7 @@ interface Customer {
   whatsapp: string | null;
   email: string | null;
   nationality: string | null;
-  passport: string | null;
+  passportNumber: string | null;
   nationalId: string | null;
   address: string | null;
   source: string | null;
@@ -87,7 +71,7 @@ async function fetchNotes(id: number): Promise<{ notes: Note[] }> {
   return res.json();
 }
 
-async function updateCustomer(id: number, data: Partial<Customer>): Promise<{ customer: Customer }> {
+async function updateCustomer(id: number, data: Record<string, unknown>): Promise<{ customer: Customer }> {
   const res = await fetch(`${BASE}/api/customers/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -104,7 +88,10 @@ async function deleteCustomer(id: number): Promise<void> {
   if (!res.ok) throw new Error(json.message || "Failed to delete customer");
 }
 
-async function createNote(customerId: number, data: { note: string; followUpDate?: string; followUpStatus?: string }): Promise<{ note: Note }> {
+async function createNote(
+  customerId: number,
+  data: { note: string; followUpDate?: string; followUpStatus?: string; ticketId?: number }
+): Promise<{ note: Note }> {
   const res = await fetch(`${BASE}/api/customers/${customerId}/notes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -115,7 +102,7 @@ async function createNote(customerId: number, data: { note: string; followUpDate
   return json;
 }
 
-async function updateNote(noteId: number, data: { followUpStatus?: string; note?: string }): Promise<{ note: Note }> {
+async function updateNote(noteId: number, data: { followUpStatus?: string }): Promise<{ note: Note }> {
   const res = await fetch(`${BASE}/api/notes/${noteId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -133,18 +120,19 @@ function EditCustomerSheet({ customer, open, onClose }: { customer: Customer; op
     whatsapp: customer.whatsapp ?? "",
     email: customer.email ?? "",
     nationality: customer.nationality ?? "",
-    passport: customer.passport ?? "",
+    passportNumber: customer.passportNumber ?? "",
     nationalId: customer.nationalId ?? "",
     address: customer.address ?? "",
-    source: customer.source ?? "walk_in",
+    source: customer.source ?? "other",
     status: customer.status,
+    assignedEmployeeId: customer.assignedEmployeeId?.toString() ?? "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (data: Partial<Customer>) => updateCustomer(customer.id, data),
+    mutationFn: (data: Record<string, unknown>) => updateCustomer(customer.id, data),
     onSuccess: () => {
       toast({ title: "Customer updated" });
       qc.invalidateQueries({ queryKey: ["customer", customer.id] });
@@ -165,9 +153,15 @@ function EditCustomerSheet({ customer, open, onClose }: { customer: Customer; op
     if (!form.fullName.trim()) errs.fullName = "Full name is required";
     if (!form.phone.trim()) errs.phone = "Phone is required";
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
-    const payload: Record<string, string> = {};
-    Object.entries(form).forEach(([k, v]) => { if (v) payload[k] = v; });
-    mutation.mutate(payload as Partial<Customer>);
+    const payload: Record<string, unknown> = {};
+    Object.entries(form).forEach(([k, v]) => {
+      if (k === "assignedEmployeeId") {
+        if (v) payload[k] = Number(v);
+      } else if (v) {
+        payload[k] = v;
+      }
+    });
+    mutation.mutate(payload);
   }
 
   return (
@@ -202,7 +196,7 @@ function EditCustomerSheet({ customer, open, onClose }: { customer: Customer; op
             </div>
             <div className="space-y-1.5">
               <Label>Passport No.</Label>
-              <Input value={form.passport} onChange={(e) => set("passport", e.target.value)} />
+              <Input value={form.passportNumber} onChange={(e) => set("passportNumber", e.target.value)} />
             </div>
           </div>
           <div className="space-y-1.5">
@@ -228,10 +222,22 @@ function EditCustomerSheet({ customer, open, onClose }: { customer: Customer; op
               <Select value={form.status} onValueChange={(v) => set("status", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CUSTOMER_STATUSES.map((s) => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+                  {CUSTOMER_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Assigned Employee ID</Label>
+            <Input
+              type="number"
+              min={1}
+              value={form.assignedEmployeeId}
+              onChange={(e) => set("assignedEmployeeId", e.target.value)}
+              placeholder="Employee ID (optional)"
+            />
           </div>
           <SheetFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>Cancel</Button>
@@ -243,22 +249,32 @@ function EditCustomerSheet({ customer, open, onClose }: { customer: Customer; op
   );
 }
 
-function AddNoteForm({ customerId, onSuccess }: { customerId: number; onSuccess: () => void }) {
+function AddNoteForm({
+  customerId,
+  onSuccess,
+  autoFocus,
+}: {
+  customerId: number;
+  onSuccess: () => void;
+  autoFocus?: boolean;
+}) {
   const [noteText, setNoteText] = useState("");
   const [followUpDate, setFollowUpDate] = useState("");
   const [followUpStatus, setFollowUpStatus] = useState("pending");
-  const [expanded, setExpanded] = useState(false);
+  const [ticketId, setTicketId] = useState("");
+  const [expanded, setExpanded] = useState(autoFocus ?? false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (data: { note: string; followUpDate?: string; followUpStatus?: string }) =>
+    mutationFn: (data: { note: string; followUpDate?: string; followUpStatus?: string; ticketId?: number }) =>
       createNote(customerId, data),
     onSuccess: () => {
       toast({ title: "Note added" });
       setNoteText("");
       setFollowUpDate("");
       setFollowUpStatus("pending");
+      setTicketId("");
       setExpanded(false);
       qc.invalidateQueries({ queryKey: ["notes", customerId] });
       qc.invalidateQueries({ queryKey: ["customer", customerId] });
@@ -273,11 +289,14 @@ function AddNoteForm({ customerId, onSuccess }: { customerId: number; onSuccess:
       toast({ title: "Note text is required", variant: "destructive" });
       return;
     }
-    const data: { note: string; followUpDate?: string; followUpStatus?: string } = { note: noteText.trim() };
+    const data: { note: string; followUpDate?: string; followUpStatus?: string; ticketId?: number } = {
+      note: noteText.trim(),
+    };
     if (followUpDate) {
       data.followUpDate = new Date(followUpDate).toISOString();
       data.followUpStatus = followUpStatus;
     }
+    if (ticketId) data.ticketId = Number(ticketId);
     mutation.mutate(data);
   }
 
@@ -313,19 +332,29 @@ function AddNoteForm({ customerId, onSuccess }: { customerId: number; onSuccess:
             onChange={(e) => setFollowUpDate(e.target.value)}
           />
         </div>
-        {followUpDate && (
-          <div className="space-y-1.5">
-            <Label>Follow-up Status</Label>
-            <Select value={followUpStatus} onValueChange={setFollowUpStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="done">Done</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+        <div className="space-y-1.5">
+          <Label>Linked Ticket ID</Label>
+          <Input
+            type="number"
+            min={1}
+            value={ticketId}
+            onChange={(e) => setTicketId(e.target.value)}
+            placeholder="Optional ticket #"
+          />
+        </div>
       </div>
+      {followUpDate && (
+        <div className="space-y-1.5">
+          <Label>Follow-up Status</Label>
+          <Select value={followUpStatus} onValueChange={setFollowUpStatus}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="done">Done</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div className="flex gap-2 justify-end">
         <Button type="button" variant="ghost" size="sm" onClick={() => setExpanded(false)}>Cancel</Button>
         <Button type="submit" size="sm" disabled={mutation.isPending}>
@@ -349,7 +378,7 @@ function NoteCard({ note, customerId }: { note: Note; customerId: number }) {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const fuInfo = note.followUpStatus ? FOLLOW_UP_STATUS_COLORS[note.followUpStatus] : null;
+  const fuStyle = note.followUpStatus ? FOLLOW_UP_STATUS_STYLES[note.followUpStatus] : null;
 
   return (
     <div className="flex gap-3">
@@ -362,36 +391,46 @@ function NoteCard({ note, customerId }: { note: Note; customerId: number }) {
       <div className="flex-1 pb-4">
         <div className="bg-card border rounded-lg p-3 shadow-sm">
           <p className="text-sm whitespace-pre-wrap">{note.note}</p>
-          {note.followUpDate && (
-            <div className="mt-2 pt-2 border-t flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                Follow-up: {formatShortDate(note.followUpDate)}
-              </div>
-              {fuInfo && (
-                <div className="flex items-center gap-1.5">
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${fuInfo.cls}`}>
-                    {fuInfo.icon} {fuInfo.label}
-                  </span>
-                  {note.followUpStatus === "pending" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-6 text-xs px-2"
-                      disabled={markDone.isPending}
-                      onClick={() => markDone.mutate()}
-                    >
-                      <Check className="h-3 w-3 mr-1" /> Mark Done
-                    </Button>
+          {(note.followUpDate || note.ticketId) && (
+            <div className="mt-2 pt-2 border-t space-y-1.5">
+              {note.ticketId && (
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Ticket className="h-3 w-3" />
+                  Linked to Ticket #{note.ticketId}
+                </div>
+              )}
+              {note.followUpDate && (
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    Follow-up: {formatShortDate(note.followUpDate)}
+                  </div>
+                  {fuStyle && (
+                    <div className="flex items-center gap-1.5">
+                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${fuStyle.cls}`}>
+                        {fuStyle.icon} {fuStyle.label}
+                      </span>
+                      {note.followUpStatus === "pending" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-xs px-2"
+                          disabled={markDone.isPending}
+                          onClick={() => markDone.mutate()}
+                        >
+                          <Check className="h-3 w-3 mr-1" /> Mark Done
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
             </div>
           )}
         </div>
-        <div className="text-xs text-muted-foreground mt-1 ml-1">
-          {formatDateTime(note.createdAt)}
-          {note.ticketId && <span> · Ticket #{note.ticketId}</span>}
+        <div className="text-xs text-muted-foreground mt-1 ml-1 flex items-center gap-2">
+          <span>{formatDateTime(note.createdAt)}</span>
+          {note.employeeId && <span>· Employee #{note.employeeId}</span>}
         </div>
       </div>
     </div>
@@ -402,8 +441,8 @@ function InfoRow({ label, value, icon }: { label: string; value?: string | null;
   if (!value) return null;
   return (
     <div className="flex gap-2 text-sm">
-      <span className="text-muted-foreground w-28 flex-shrink-0 flex items-center gap-1">{icon}{label}</span>
-      <span className="font-medium">{value}</span>
+      <span className="text-muted-foreground w-32 flex-shrink-0 flex items-center gap-1">{icon}{label}</span>
+      <span className="font-medium break-all">{value}</span>
     </div>
   );
 }
@@ -416,7 +455,9 @@ export default function CustomerProfile() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
+  const [showAddNote, setShowAddNote] = useState(false);
 
+  const notesSectionRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -433,7 +474,7 @@ export default function CustomerProfile() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: (status: string) => updateCustomer(id, { status } as Partial<Customer>),
+    mutationFn: (status: string) => updateCustomer(id, { status }),
     onSuccess: () => {
       toast({ title: "Status updated" });
       qc.invalidateQueries({ queryKey: ["customer", id] });
@@ -456,13 +497,18 @@ export default function CustomerProfile() {
     },
   });
 
+  function handleAddNote() {
+    setShowAddNote(true);
+    setTimeout(() => notesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  }
+
   if (isNaN(id)) {
     return <div className="text-destructive">Invalid customer ID.</div>;
   }
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-3xl">
         <Skeleton className="h-8 w-48" />
         <Card><CardContent className="p-6 space-y-3">
           {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-4 w-full" />)}
@@ -488,6 +534,7 @@ export default function CustomerProfile() {
         </Link>
       </div>
 
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 text-xl font-bold"
@@ -498,46 +545,43 @@ export default function CustomerProfile() {
             <h1 className="text-2xl font-bold tracking-tight">{c.fullName}</h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {changingStatus ? (
-                <Select
-                  defaultValue={c.status}
-                  onValueChange={(v) => statusMutation.mutate(v)}
-                  disabled={statusMutation.isPending}
-                >
-                  <SelectTrigger className="h-7 text-xs w-36 px-2">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CUSTOMER_STATUSES.map((s) => (
-                      <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <>
+                  <Select
+                    defaultValue={c.status}
+                    onValueChange={(v) => statusMutation.mutate(v)}
+                    disabled={statusMutation.isPending}
+                  >
+                    <SelectTrigger className="h-7 text-xs w-36 px-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CUSTOMER_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setChangingStatus(false)}>
+                    Cancel
+                  </button>
+                </>
               ) : (
-                <span
-                  className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize cursor-pointer hover:opacity-80 transition-opacity ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}
-                  onClick={() => setChangingStatus(true)}
-                  title="Click to change status"
-                >
-                  {c.status}
-                </span>
-              )}
-              {!changingStatus && (
-                <button
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
-                  onClick={() => setChangingStatus(true)}
-                >
-                  Change Status
-                </button>
-              )}
-              {changingStatus && (
-                <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setChangingStatus(false)}>
-                  Cancel
-                </button>
+                <>
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_COLORS[c.status] ?? "bg-gray-100 text-gray-600"}`}>
+                    {STATUS_LABELS[c.status] ?? c.status}
+                  </span>
+                  <button
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
+                    onClick={() => setChangingStatus(true)}
+                  >
+                    Change Status
+                  </button>
+                </>
               )}
             </div>
           </div>
         </div>
 
+        {/* Quick actions */}
         <div className="flex items-center gap-2 flex-wrap">
           {c.phone && (
             <a href={`tel:${c.phone}`}>
@@ -557,6 +601,9 @@ export default function CustomerProfile() {
               </Button>
             </a>
           )}
+          <Button variant="outline" size="sm" className="flex items-center gap-1.5" onClick={handleAddNote}>
+            <MessageSquare className="h-4 w-4" /> Add Note
+          </Button>
           <Link href={`/tickets/new?customerId=${c.id}`}>
             <Button variant="outline" size="sm" className="flex items-center gap-1.5">
               <Ticket className="h-4 w-4" /> Add Ticket
@@ -565,12 +612,17 @@ export default function CustomerProfile() {
           <Button variant="outline" size="sm" className="flex items-center gap-1.5" onClick={() => setEditOpen(true)}>
             <Pencil className="h-4 w-4" /> Edit
           </Button>
-          <Button variant="outline" size="sm" className="flex items-center gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setDeleteOpen(true)}>
+          <Button
+            variant="outline" size="sm"
+            className="flex items-center gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={() => setDeleteOpen(true)}
+          >
             <Trash2 className="h-4 w-4" /> Delete
           </Button>
         </div>
       </div>
 
+      {/* Info Card */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4" /> Customer Details</CardTitle>
@@ -581,17 +633,19 @@ export default function CustomerProfile() {
             <InfoRow label="WhatsApp" value={c.whatsapp} icon={<Phone className="h-3.5 w-3.5" />} />
             <InfoRow label="Email" value={c.email} icon={<Mail className="h-3.5 w-3.5" />} />
             <InfoRow label="Nationality" value={c.nationality} icon={<Globe className="h-3.5 w-3.5" />} />
-            <InfoRow label="Passport" value={c.passport} icon={<CreditCard className="h-3.5 w-3.5" />} />
+            <InfoRow label="Passport No." value={c.passportNumber} icon={<CreditCard className="h-3.5 w-3.5" />} />
             <InfoRow label="National ID" value={c.nationalId} icon={<CreditCard className="h-3.5 w-3.5" />} />
             <InfoRow label="Address" value={c.address} icon={<MapPin className="h-3.5 w-3.5" />} />
             <InfoRow label="Source" value={c.source ? (SOURCE_LABELS[c.source] ?? c.source) : null} />
+            <InfoRow label="Assigned Emp." value={c.assignedEmployeeId ? `Employee #${c.assignedEmployeeId}` : null} />
             <InfoRow label="Added" value={formatShortDate(c.createdAt)} />
             {c.lastContactedAt && <InfoRow label="Last Contact" value={formatShortDate(c.lastContactedAt)} />}
           </div>
         </CardContent>
       </Card>
 
-      <div className="space-y-4">
+      {/* Notes Section */}
+      <div className="space-y-4" ref={notesSectionRef}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <MessageSquare className="h-5 w-5" /> Notes
@@ -601,7 +655,7 @@ export default function CustomerProfile() {
           </h2>
         </div>
 
-        <AddNoteForm customerId={id} onSuccess={() => {}} />
+        <AddNoteForm customerId={id} onSuccess={() => setShowAddNote(false)} autoFocus={showAddNote} key={showAddNote ? "expanded" : "collapsed"} />
 
         {notesLoading && (
           <div className="space-y-4 mt-4">
