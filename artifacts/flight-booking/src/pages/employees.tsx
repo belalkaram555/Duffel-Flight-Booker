@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Users, Plus, Pencil, UserX, UserCheck, Shield, Tag } from "lucide-react";
+import { Users, Plus, Pencil, UserX, UserCheck, Tag } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -308,14 +308,14 @@ export default function EmployeesPage() {
     setShowSheet(true);
   }
 
+  useEffect(() => {
+    if (!isAdmin) {
+      navigate("/");
+    }
+  }, [isAdmin, navigate]);
+
   if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <Shield className="h-12 w-12 text-muted-foreground/30 mb-4" />
-        <h2 className="text-lg font-semibold">Administrator Access Required</h2>
-        <p className="text-muted-foreground text-sm mt-1">Only administrators can manage employees.</p>
-      </div>
-    );
+    return null;
   }
 
   return (
