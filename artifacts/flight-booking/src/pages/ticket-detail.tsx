@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, Edit, XCircle, Plus, CreditCard, Clock, User, Plane,
+  ArrowLeft, Edit, XCircle, CreditCard, Clock, User, Plane,
   History, FileText, ChevronRight,
 } from "lucide-react";
 import { Link } from "wouter";
@@ -93,8 +93,12 @@ async function updateTicketStatus(id: number, ticketStatus: string): Promise<voi
   if (!res.ok) throw new Error("Failed to update status");
 }
 
-async function deleteTicket(id: number): Promise<void> {
-  const res = await fetch(`${BASE}/api/tickets/${id}`, { method: "DELETE" });
+async function cancelTicket(id: number): Promise<void> {
+  const res = await fetch(`${BASE}/api/tickets/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticketStatus: "cancelled" }),
+  });
   if (!res.ok) throw new Error("Failed to cancel ticket");
 }
 
@@ -272,13 +276,15 @@ export default function TicketDetail() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: () => deleteTicket(id),
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelTicket(id),
     onSuccess: () => {
-      toast({ title: "Ticket deleted" });
+      toast({ title: "Ticket cancelled" });
+      qc.invalidateQueries({ queryKey: ["ticket", id] });
       qc.invalidateQueries({ queryKey: ["tickets"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
-      navigate("/tickets");
+      setStatusValue("cancelled");
+      setCancelOpen(false);
     },
     onError: (e: Error) => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -343,8 +349,14 @@ export default function TicketDetail() {
               <Edit className="h-4 w-4 mr-1.5" /> Edit
             </Button>
           </Link>
-          <Button variant="destructive" size="sm" onClick={() => setCancelOpen(true)}>
-            <XCircle className="h-4 w-4 mr-1.5" /> Delete
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-destructive text-destructive hover:bg-destructive/10"
+            onClick={() => setCancelOpen(true)}
+            disabled={ticket.ticketStatus === "cancelled"}
+          >
+            <XCircle className="h-4 w-4 mr-1.5" /> Cancel Ticket
           </Button>
         </div>
       </div>
@@ -535,19 +547,19 @@ export default function TicketDetail() {
       <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Ticket #{id}?</AlertDialogTitle>
+            <AlertDialogTitle>Cancel Ticket #{id}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the ticket and all its payment history. This action cannot be undone.
+              This will change the ticket status to <strong>Cancelled</strong>. The ticket record, history, and payments will all be preserved. You can change the status again from the ticket detail page.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep Ticket</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
+              onClick={() => cancelMutation.mutate()}
+              disabled={cancelMutation.isPending}
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete Ticket"}
+              {cancelMutation.isPending ? "Cancelling..." : "Cancel Ticket"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

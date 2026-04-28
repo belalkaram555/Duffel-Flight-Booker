@@ -1,12 +1,15 @@
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCircle2, Clock, AlertCircle, Calendar, ChevronRight } from "lucide-react";
+import { Bell, CheckCircle2, Clock, AlertCircle, Calendar, ChevronRight, Filter } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { formatShortDate, formatDateTime } from "@/lib/formatters";
+import { formatDateTime } from "@/lib/formatters";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -47,7 +50,7 @@ async function markNoteDone(id: number): Promise<void> {
   if (!res.ok) throw new Error("Failed to mark as done");
 }
 
-function NoteCard({ note, showMarkDone }: { note: FollowUpNote; showMarkDone?: boolean }) {
+function NoteItem({ note, showMarkDone }: { note: FollowUpNote; showMarkDone?: boolean }) {
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -62,57 +65,94 @@ function NoteCard({ note, showMarkDone }: { note: FollowUpNote; showMarkDone?: b
   });
 
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {note.customerName && note.customerId ? (
-                <Link href={`/customers/${note.customerId}`}>
-                  <span className="font-semibold text-sm hover:underline text-primary cursor-pointer">
-                    {note.customerName}
-                  </span>
-                </Link>
-              ) : (
-                <span className="font-semibold text-sm text-muted-foreground">Unknown customer</span>
-              )}
-              {note.ticketId && (
-                <Link href={`/tickets/${note.ticketId}`}>
-                  <span className="text-xs text-muted-foreground hover:underline cursor-pointer">Ticket #{note.ticketId}</span>
-                </Link>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{note.note}</p>
-            {note.followUpDate && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3 flex-shrink-0" />
-                <span>{formatDateTime(note.followUpDate)}</span>
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col items-end gap-2 flex-shrink-0">
-            {showMarkDone && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs px-2"
-                disabled={markDone.isPending}
-                onClick={() => markDone.mutate()}
-              >
-                <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Done
-              </Button>
-            )}
-            {note.customerId && (
-              <Link href={`/customers/${note.customerId}`}>
-                <Button size="sm" variant="ghost" className="h-7 text-xs px-2">
-                  View <ChevronRight className="h-3 w-3 ml-0.5" />
-                </Button>
+    <div className="border rounded-lg p-3 bg-card flex items-start justify-between gap-3">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm line-clamp-2 mb-1.5">{note.note}</p>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+          {note.followUpDate && (
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3 flex-shrink-0" />
+              {formatDateTime(note.followUpDate)}
+            </span>
+          )}
+          {note.ticketId && (
+            <Link href={`/tickets/${note.ticketId}`}>
+              <span className="hover:underline cursor-pointer">Ticket #{note.ticketId}</span>
+            </Link>
+          )}
+          {note.employeeId && <span>Employee #{note.employeeId}</span>}
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+        {showMarkDone && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs px-2"
+            disabled={markDone.isPending}
+            onClick={() => markDone.mutate()}
+          >
+            <CheckCircle2 className="h-3 w-3 mr-1" /> Done
+          </Button>
+        )}
+        {note.customerId && (
+          <Link href={`/customers/${note.customerId}`}>
+            <Button size="sm" variant="ghost" className="h-7 text-xs px-2">
+              View <ChevronRight className="h-3 w-3 ml-0.5" />
+            </Button>
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface CustomerGroup {
+  customerId: number | null;
+  customerName: string | null;
+  notes: FollowUpNote[];
+}
+
+function groupByCustomer(notes: FollowUpNote[]): CustomerGroup[] {
+  const map = new Map<string, CustomerGroup>();
+  for (const note of notes) {
+    const key = String(note.customerId ?? "none");
+    if (!map.has(key)) {
+      map.set(key, { customerId: note.customerId, customerName: note.customerName, notes: [] });
+    }
+    map.get(key)!.notes.push(note);
+  }
+  return Array.from(map.values());
+}
+
+function NoteGroupList({ notes, showMarkDone }: { notes: FollowUpNote[]; showMarkDone?: boolean }) {
+  const groups = groupByCustomer(notes);
+  return (
+    <div className="space-y-6">
+      {groups.map((group) => (
+        <div key={String(group.customerId ?? "none")}>
+          <div className="flex items-center gap-2 mb-2">
+            {group.customerId ? (
+              <Link href={`/customers/${group.customerId}`}>
+                <span className="font-semibold text-sm hover:underline text-primary cursor-pointer">
+                  {group.customerName ?? "Unknown customer"}
+                </span>
               </Link>
+            ) : (
+              <span className="font-semibold text-sm text-muted-foreground">Unknown customer</span>
             )}
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+              {group.notes.length}
+            </span>
+          </div>
+          <div className="space-y-2 pl-3 border-l-2 border-border">
+            {group.notes.map((note) => (
+              <NoteItem key={note.id} note={note} showMarkDone={showMarkDone} />
+            ))}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      ))}
+    </div>
   );
 }
 
@@ -125,32 +165,112 @@ function EmptyTab({ label }: { label: string }) {
   );
 }
 
-function TabList({ notes, showMarkDone }: { notes: FollowUpNote[]; showMarkDone?: boolean }) {
-  if (notes.length === 0) return null;
-  return (
-    <div className="space-y-3">
-      {notes.map((note) => (
-        <NoteCard key={note.id} note={note} showMarkDone={showMarkDone} />
-      ))}
-    </div>
-  );
+function applyFilters(
+  notes: FollowUpNote[],
+  employeeFilter: string,
+  startDate: string,
+  endDate: string
+): FollowUpNote[] {
+  return notes.filter((n) => {
+    if (employeeFilter && n.employeeId !== Number(employeeFilter)) return false;
+    if (startDate && n.followUpDate && new Date(n.followUpDate) < new Date(startDate)) return false;
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      if (n.followUpDate && new Date(n.followUpDate) > end) return false;
+    }
+    return true;
+  });
 }
 
 export default function Reminders() {
+  const [employeeFilter, setEmployeeFilter] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["followups"],
     queryFn: fetchFollowUps,
     staleTime: 30_000,
   });
 
+  const filtered = useMemo(() => {
+    if (!data) return null;
+    const filter = (list: FollowUpNote[]) => applyFilters(list, employeeFilter, startDate, endDate);
+    return {
+      today: filter(data.today),
+      upcoming: filter(data.upcoming),
+      missed: filter(data.missed),
+      done: filter(data.done),
+    };
+  }, [data, employeeFilter, startDate, endDate]);
+
+  const hasFilters = !!(employeeFilter || startDate || endDate);
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reminders & Follow-ups</h1>
-        <p className="text-muted-foreground mt-1 text-sm md:text-base">
-          Track and action all customer follow-up notes.
-        </p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reminders & Follow-ups</h1>
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">
+            Track and action all customer follow-up notes, grouped by customer.
+          </p>
+        </div>
+        <Button
+          variant={hasFilters ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowFilters((v) => !v)}
+        >
+          <Filter className="h-4 w-4 mr-1.5" />
+          Filters {hasFilters ? `(active)` : ""}
+        </Button>
       </div>
+
+      {showFilters && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>Employee ID</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="Filter by employee #"
+                  value={employeeFilter}
+                  onChange={(e) => setEmployeeFilter(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>From Date</Label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>To Date</Label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+            {hasFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-3"
+                onClick={() => { setEmployeeFilter(""); setStartDate(""); setEndDate(""); }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {isLoading && (
         <div className="space-y-3">
@@ -160,77 +280,58 @@ export default function Reminders() {
 
       {isError && <div className="text-destructive">Failed to load follow-ups.</div>}
 
-      {data && (
+      {filtered && (
         <Tabs defaultValue="today">
           <TabsList className="mb-4">
             <TabsTrigger value="today" className="gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
               Today
-              {data.today.length > 0 && (
+              {filtered.today.length > 0 && (
                 <span className="ml-1 rounded-full bg-primary text-primary-foreground text-xs px-1.5 py-0.5 font-medium">
-                  {data.today.length}
+                  {filtered.today.length}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger value="upcoming" className="gap-1.5">
               <Clock className="h-3.5 w-3.5" />
               Upcoming
-              {data.upcoming.length > 0 && (
+              {filtered.upcoming.length > 0 && (
                 <span className="ml-1 rounded-full bg-blue-500 text-white text-xs px-1.5 py-0.5 font-medium">
-                  {data.upcoming.length}
+                  {filtered.upcoming.length}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger value="missed" className="gap-1.5">
               <AlertCircle className="h-3.5 w-3.5" />
               Missed
-              {data.missed.length > 0 && (
+              {filtered.missed.length > 0 && (
                 <span className="ml-1 rounded-full bg-destructive text-destructive-foreground text-xs px-1.5 py-0.5 font-medium">
-                  {data.missed.length}
+                  {filtered.missed.length}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger value="done" className="gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Done
-              {data.done.length > 0 && (
+              {filtered.done.length > 0 && (
                 <span className="ml-1 rounded-full bg-green-500 text-white text-xs px-1.5 py-0.5 font-medium">
-                  {data.done.length}
+                  {filtered.done.length}
                 </span>
               )}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="today">
-            {data.today.length === 0 ? (
-              <EmptyTab label="today's" />
-            ) : (
-              <TabList notes={data.today} showMarkDone />
-            )}
+            {filtered.today.length === 0 ? <EmptyTab label="today's" /> : <NoteGroupList notes={filtered.today} showMarkDone />}
           </TabsContent>
-
           <TabsContent value="upcoming">
-            {data.upcoming.length === 0 ? (
-              <EmptyTab label="upcoming" />
-            ) : (
-              <TabList notes={data.upcoming} showMarkDone />
-            )}
+            {filtered.upcoming.length === 0 ? <EmptyTab label="upcoming" /> : <NoteGroupList notes={filtered.upcoming} showMarkDone />}
           </TabsContent>
-
           <TabsContent value="missed">
-            {data.missed.length === 0 ? (
-              <EmptyTab label="missed" />
-            ) : (
-              <TabList notes={data.missed} showMarkDone />
-            )}
+            {filtered.missed.length === 0 ? <EmptyTab label="missed" /> : <NoteGroupList notes={filtered.missed} showMarkDone />}
           </TabsContent>
-
           <TabsContent value="done">
-            {data.done.length === 0 ? (
-              <EmptyTab label="done" />
-            ) : (
-              <TabList notes={data.done} />
-            )}
+            {filtered.done.length === 0 ? <EmptyTab label="done" /> : <NoteGroupList notes={filtered.done} />}
           </TabsContent>
         </Tabs>
       )}
