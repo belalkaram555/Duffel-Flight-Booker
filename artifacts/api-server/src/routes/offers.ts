@@ -26,7 +26,6 @@ function extractBaggageWeightMap(
 function mapAvailableBaggageServices(
   availableServices: { type: string; metadata?: unknown; segment_ids?: string[]; passenger_ids?: string[]; id?: string; total_amount?: string; total_currency?: string }[]
 ) {
-  const seen = new Set<string>();
   return availableServices
     .filter((s) => s.type === "baggage")
     .map((s) => {
@@ -43,13 +42,85 @@ function mapAvailableBaggageServices(
         segmentIds: svc.segment_ids ?? [],
         passengerIds: svc.passenger_ids ?? [],
       };
-    })
-    .filter((svc) => {
-      const key = `${svc.type}-${svc.maximumWeightKg}-${svc.segmentIds.join(",")}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
     });
+}
+
+function mapOffer(offer: Awaited<ReturnType<typeof duffel.offers.list>>["data"][number]) {
+  const weightMap = extractBaggageWeightMap(offer.available_services ?? []);
+  return {
+    id: offer.id,
+    totalAmount: offer.total_amount,
+    totalCurrency: offer.total_currency,
+    baseAmount: offer.base_amount,
+    taxAmount: offer.tax_amount,
+    expiresAt: offer.expires_at,
+    cabinClass: offer.cabin_class,
+    availableBaggageServices: mapAvailableBaggageServices(offer.available_services ?? []),
+    slices: offer.slices.map((slice) => ({
+      id: slice.id,
+      origin: {
+        iataCode: slice.origin.iata_code,
+        name: slice.origin.name,
+        cityName: slice.origin.city_name,
+        countryName: slice.origin.iata_country_code,
+      },
+      destination: {
+        iataCode: slice.destination.iata_code,
+        name: slice.destination.name,
+        cityName: slice.destination.city_name,
+        countryName: slice.destination.iata_country_code,
+      },
+      departureDateTime: slice.segments[0]?.departing_at ?? "",
+      arrivalDateTime: slice.segments[slice.segments.length - 1]?.arriving_at ?? "",
+      duration: slice.duration,
+      segments: slice.segments.map((seg) => ({
+        id: seg.id,
+        origin: {
+          iataCode: seg.origin.iata_code,
+          name: seg.origin.name,
+          cityName: seg.origin.city_name,
+          countryName: seg.origin.iata_country_code,
+        },
+        destination: {
+          iataCode: seg.destination.iata_code,
+          name: seg.destination.name,
+          cityName: seg.destination.city_name,
+          countryName: seg.destination.iata_country_code,
+        },
+        departureDateTime: seg.departing_at,
+        arrivalDateTime: seg.arriving_at,
+        duration: seg.duration,
+        flightNumber: `${seg.marketing_carrier.iata_code}${seg.marketing_carrier_flight_number}`,
+        marketingCarrier: {
+          iataCode: seg.marketing_carrier.iata_code,
+          name: seg.marketing_carrier.name,
+          logoSymbolUrl: seg.marketing_carrier.logo_symbol_url,
+          logotypeLockupImageUrl: seg.marketing_carrier.logotype_lockup_image_url,
+        },
+        operatingCarrier: {
+          iataCode: seg.operating_carrier.iata_code,
+          name: seg.operating_carrier.name,
+          logoSymbolUrl: seg.operating_carrier.logo_symbol_url,
+          logotypeLockupImageUrl: seg.operating_carrier.logotype_lockup_image_url,
+        },
+        aircraft: seg.aircraft
+          ? { iataCode: seg.aircraft.iata_code, name: seg.aircraft.name }
+          : undefined,
+        baggages: seg.passengers?.[0]?.baggages?.map((b) => ({
+          type: b.type as "carry_on" | "checked",
+          quantity: b.quantity,
+          maximumWeightKg: weightMap.get(seg.id)?.get(b.type) ?? null,
+        })) ?? [],
+      })),
+    })),
+    passengers: offer.passengers,
+    owner: {
+      iataCode: offer.owner.iata_code,
+      name: offer.owner.name,
+      logoSymbolUrl: offer.owner.logo_symbol_url,
+      logotypeLockupImageUrl: offer.owner.logotype_lockup_image_url,
+    },
+  };
 }
 
 function extractDuffelError(err: unknown): { message: string; code: string; httpStatus: number } {
@@ -75,16 +146,10 @@ function extractDuffelError(err: unknown): { message: string; code: string; http
       } else if (apiStatus >= 400) {
         httpStatus = apiStatus;
       }
-      return {
-        message: first.message || first.title || "Airline error",
-        code,
-        httpStatus,
-      };
+      return { message: first.message || first.title || "Airline error", code, httpStatus };
     }
   }
-  if (err instanceof Error) {
-    return { message: err.message, code: "server_error", httpStatus: 500 };
-  }
+  if (err instanceof Error) return { message: err.message, code: "server_error", httpStatus: 500 };
   return { message: "Unknown error", code: "unknown", httpStatus: 500 };
 }
 
@@ -105,144 +170,58 @@ const requireAuth: RequestHandler = (req, res, next) => {
 };
 
 router.post("/offers/search", requireAuth, async (req, res) => {
-  const parsed = SearchOffersBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({
-      error: "validation_error",
-      message: parsed.error.message,
-    });
-    return;
-  }
-
-  const { origin, destination, departureDate, returnDate, passengers, cabinClass } =
-    parsed.data;
+  const body = req.body as Record<string, unknown>;
 
   try {
-    const slices: { origin: string; destination: string; departure_date: string }[] = [
-      {
-        origin,
-        destination,
-        departure_date: departureDate,
-      },
-    ];
+    let offerRequestId: string;
 
-    if (returnDate) {
-      slices.push({
-        origin: destination,
-        destination: origin,
-        departure_date: returnDate,
+    if (typeof body.offerRequestId === "string") {
+      offerRequestId = body.offerRequestId;
+    } else {
+      const parsed = SearchOffersBody.safeParse(body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "validation_error", message: parsed.error.message });
+        return;
+      }
+
+      const { origin, destination, departureDate, returnDate, passengers, cabinClass } = parsed.data;
+
+      const slices: { origin: string; destination: string; departure_date: string }[] = [
+        { origin, destination, departure_date: departureDate },
+      ];
+      if (returnDate) {
+        slices.push({ origin: destination, destination: origin, departure_date: returnDate });
+      }
+
+      const offerRequest = await duffel.offerRequests.create({
+        slices,
+        passengers: passengers.map((p) => ({
+          type: p.type as "adult" | "child" | "infant_without_seat",
+          ...(p.age !== undefined ? { age: p.age } : {}),
+        })),
+        cabin_class: (cabinClass ?? "economy") as "economy" | "premium_economy" | "business" | "first",
+        return_offers: false,
       });
+
+      offerRequestId = offerRequest.data.id;
     }
 
-    const offerRequest = await duffel.offerRequests.create({
-      slices,
-      passengers: passengers.map((p) => ({
-        type: p.type as "adult" | "child" | "infant_without_seat",
-        ...(p.age !== undefined ? { age: p.age } : {}),
-      })),
-      cabin_class: (cabinClass ?? "economy") as
-        | "economy"
-        | "premium_economy"
-        | "business"
-        | "first",
-      return_offers: false,
-    });
+    const after = typeof body.after === "string" ? body.after : undefined;
 
     const offersList = await duffel.offers.list({
-      offer_request_id: offerRequest.data.id,
+      offer_request_id: offerRequestId,
       sort: "total_amount",
-      limit: 50,
+      limit: 200,
+      ...(after ? { after } : {}),
     });
 
-    const offers = offersList.data.map((offer) => {
-      const weightMap = extractBaggageWeightMap(offer.available_services ?? []);
-      return {
-        id: offer.id,
-        totalAmount: offer.total_amount,
-        totalCurrency: offer.total_currency,
-        baseAmount: offer.base_amount,
-        taxAmount: offer.tax_amount,
-        expiresAt: offer.expires_at,
-        cabinClass: offer.cabin_class,
-        availableBaggageServices: mapAvailableBaggageServices(offer.available_services ?? []),
-        slices: offer.slices.map((slice) => ({
-          id: slice.id,
-          origin: {
-            iataCode: slice.origin.iata_code,
-            name: slice.origin.name,
-            cityName: slice.origin.city_name,
-            countryName: slice.origin.iata_country_code,
-          },
-          destination: {
-            iataCode: slice.destination.iata_code,
-            name: slice.destination.name,
-            cityName: slice.destination.city_name,
-            countryName: slice.destination.iata_country_code,
-          },
-          departureDateTime: slice.segments[0]?.departing_at ?? "",
-          arrivalDateTime: slice.segments[slice.segments.length - 1]?.arriving_at ?? "",
-          duration: slice.duration,
-          segments: slice.segments.map((seg) => ({
-            id: seg.id,
-            origin: {
-              iataCode: seg.origin.iata_code,
-              name: seg.origin.name,
-              cityName: seg.origin.city_name,
-              countryName: seg.origin.iata_country_code,
-            },
-            destination: {
-              iataCode: seg.destination.iata_code,
-              name: seg.destination.name,
-              cityName: seg.destination.city_name,
-              countryName: seg.destination.iata_country_code,
-            },
-            departureDateTime: seg.departing_at,
-            arrivalDateTime: seg.arriving_at,
-            duration: seg.duration,
-            flightNumber: `${seg.marketing_carrier.iata_code}${seg.marketing_carrier_flight_number}`,
-            marketingCarrier: {
-              iataCode: seg.marketing_carrier.iata_code,
-              name: seg.marketing_carrier.name,
-              logoSymbolUrl: seg.marketing_carrier.logo_symbol_url,
-              logotypeLockupImageUrl: seg.marketing_carrier.logotype_lockup_image_url,
-            },
-            operatingCarrier: {
-              iataCode: seg.operating_carrier.iata_code,
-              name: seg.operating_carrier.name,
-              logoSymbolUrl: seg.operating_carrier.logo_symbol_url,
-              logotypeLockupImageUrl: seg.operating_carrier.logotype_lockup_image_url,
-            },
-            aircraft: seg.aircraft
-              ? {
-                  iataCode: seg.aircraft.iata_code,
-                  name: seg.aircraft.name,
-                }
-              : undefined,
-            baggages: seg.passengers?.[0]?.baggages?.map((b) => ({
-              type: b.type as "carry_on" | "checked",
-              quantity: b.quantity,
-              maximumWeightKg: weightMap.get(seg.id)?.get(b.type) ?? null,
-            })) ?? [],
-          })),
-        })),
-        passengers: offer.passengers,
-        owner: {
-          iataCode: offer.owner.iata_code,
-          name: offer.owner.name,
-          logoSymbolUrl: offer.owner.logo_symbol_url,
-          logotypeLockupImageUrl: offer.owner.logotype_lockup_image_url,
-        },
-      };
-    });
+    const offers = offersList.data.map(mapOffer);
+    const nextAfter = offersList.meta?.after ?? null;
 
-    res.json({
-      offerRequestId: offerRequest.data.id,
-      offers,
-    });
+    res.json({ offerRequestId, offers, nextAfter });
   } catch (err: unknown) {
     req.log.error({ err }, "Error searching offers");
-    const message =
-      err instanceof Error ? err.message : "Failed to search offers";
+    const message = err instanceof Error ? err.message : "Failed to search offers";
     res.status(500).json({ error: "duffel_error", message });
   }
 });
@@ -311,10 +290,7 @@ router.get("/offers/:offerId", requireAuth, async (req, res) => {
             logotypeLockupImageUrl: seg.operating_carrier.logotype_lockup_image_url,
           },
           aircraft: seg.aircraft
-            ? {
-                iataCode: seg.aircraft.iata_code,
-                name: seg.aircraft.name,
-              }
+            ? { iataCode: seg.aircraft.iata_code, name: seg.aircraft.name }
             : undefined,
           baggages: seg.passengers?.[0]?.baggages?.map((b) => ({
             type: b.type as "carry_on" | "checked",
