@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/formatters";
-import { useCurrentEmployee, EMPLOYEES } from "@/contexts/employee-context";
+import { useCurrentEmployee, useEmployee } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -55,6 +55,7 @@ async function markNoteDone(id: number): Promise<void> {
 function NoteItem({ note, showMarkDone }: { note: FollowUpNote; showMarkDone?: boolean }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { employees } = useEmployee();
 
   const markDone = useMutation({
     mutationFn: () => markNoteDone(note.id),
@@ -67,7 +68,7 @@ function NoteItem({ note, showMarkDone }: { note: FollowUpNote; showMarkDone?: b
   });
 
   const agentName = note.employeeId
-    ? (EMPLOYEES.find((e) => e.id === note.employeeId)?.name ?? `#${note.employeeId}`)
+    ? (employees.find((e) => e.id === note.employeeId)?.name ?? `#${note.employeeId}`)
     : null;
 
   return (
@@ -196,6 +197,7 @@ export default function Reminders() {
   const [showFilters, setShowFilters] = useState(false);
   const [myReminders, setMyReminders] = useState(false);
   const currentEmployee = useCurrentEmployee();
+  const { employees } = useEmployee();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["followups"],
@@ -273,7 +275,7 @@ export default function Reminders() {
                   <SelectTrigger><SelectValue placeholder="All agents" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All agents</SelectItem>
-                    {EMPLOYEES.map((e) => (
+                    {employees.map((e) => (
                       <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>
                     ))}
                   </SelectContent>

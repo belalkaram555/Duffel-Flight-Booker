@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Plane, Search, ListFilter, LayoutDashboard, Menu, X, Users, Tag, Bell, LogOut } from "lucide-react";
+import { Plane, Search, ListFilter, LayoutDashboard, Menu, X, Users, Tag, Bell, LogOut, UserCog } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useEmployee } from "@/contexts/employee-context";
@@ -13,6 +13,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { currentEmployee, logout } = useEmployee();
 
+  const isAdmin = currentEmployee?.role === "Administrator";
+
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/customers", label: "Customers", icon: Users },
@@ -20,6 +22,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/reminders", label: "Reminders", icon: Bell },
     { href: "/search", label: "Flight Search", icon: Search },
     { href: "/orders", label: "Orders", icon: ListFilter },
+    ...(isAdmin ? [{ href: "/employees", label: "Employees", icon: UserCog }] : []),
   ];
 
   const isActive = (href: string) =>

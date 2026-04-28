@@ -18,7 +18,7 @@ import {
   TICKET_STATUSES, PAYMENT_STATUSES, CURRENCIES,
 } from "@/lib/ticket-constants";
 import { cn } from "@/lib/utils";
-import { EMPLOYEES } from "@/contexts/employee-context";
+import { useEmployee } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -114,6 +114,7 @@ export default function TicketForm() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
+  const { employees } = useEmployee();
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [customerOpen, setCustomerOpen] = useState(false);
@@ -309,7 +310,7 @@ export default function TicketForm() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {EMPLOYEES.map((e) => (
+                  {employees.map((e) => (
                     <SelectItem key={e.id} value={String(e.id)}>{e.name} — {e.role}</SelectItem>
                   ))}
                 </SelectContent>

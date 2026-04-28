@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SheetFooter } from "@/components/ui/sheet";
 import { STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES, CUSTOMER_SOURCES } from "@/lib/customer-constants";
-import { EMPLOYEES } from "@/contexts/employee-context";
+import { useEmployee } from "@/contexts/employee-context";
 
 export interface CustomerFormData {
   fullName: string;
@@ -46,6 +46,7 @@ interface Props {
 export function CustomerForm({ initialValues, submitLabel, isPending, onSubmit, onCancel }: Props) {
   const [form, setForm] = useState<CustomerFormData>({ ...EMPTY_CUSTOMER_FORM, ...initialValues });
   const [errors, setErrors] = useState<Partial<CustomerFormData>>({});
+  const { employees } = useEmployee();
 
   function set(field: keyof CustomerFormData, val: string) {
     setForm((f) => ({ ...f, [field]: val }));
@@ -150,7 +151,7 @@ export function CustomerForm({ initialValues, submitLabel, isPending, onSubmit, 
           <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="unassigned">Unassigned</SelectItem>
-            {EMPLOYEES.map((e) => (
+            {employees.map((e) => (
               <SelectItem key={e.id} value={String(e.id)}>{e.name} — {e.role}</SelectItem>
             ))}
           </SelectContent>

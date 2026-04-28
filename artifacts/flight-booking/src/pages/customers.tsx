@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatShortDate } from "@/lib/formatters";
 import { CustomerForm, EMPTY_CUSTOMER_FORM } from "@/components/customer-form";
 import { STATUS_COLORS, STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES } from "@/lib/customer-constants";
-import { useCurrentEmployee, EMPLOYEES } from "@/contexts/employee-context";
+import { useCurrentEmployee, useEmployee } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -105,6 +105,7 @@ export default function Customers() {
   const [myCustomers, setMyCustomers] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const currentEmployee = useCurrentEmployee();
+  const { employees } = useEmployee();
 
   const activeEmployeeId = myCustomers
     ? currentEmployee.id
@@ -186,7 +187,7 @@ export default function Customers() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All agents</SelectItem>
-                {EMPLOYEES.map((e) => (
+                {employees.map((e) => (
                   <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -284,7 +285,7 @@ export default function Customers() {
 
                       <div className="hidden md:block text-sm text-muted-foreground">
                         {c.assignedEmployeeId
-                          ? (EMPLOYEES.find((e) => e.id === c.assignedEmployeeId)?.name ?? `#${c.assignedEmployeeId}`)
+                          ? (employees.find((e) => e.id === c.assignedEmployeeId)?.name ?? `#${c.assignedEmployeeId}`)
                           : "—"}
                       </div>
 

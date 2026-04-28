@@ -13,7 +13,7 @@ import {
   TICKET_STATUS_COLORS, TICKET_STATUS_LABELS, PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS,
   TICKET_STATUSES, PAYMENT_STATUSES,
 } from "@/lib/ticket-constants";
-import { useCurrentEmployee, EMPLOYEES } from "@/contexts/employee-context";
+import { useCurrentEmployee, useEmployee } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -56,6 +56,7 @@ export default function Tickets() {
   const [employeeFilter, setEmployeeFilter] = useState("all");
   const [myTickets, setMyTickets] = useState(false);
   const currentEmployee = useCurrentEmployee();
+  const { employees } = useEmployee();
 
   const activeEmployeeId = myTickets
     ? currentEmployee.id
@@ -151,7 +152,7 @@ export default function Tickets() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All agents</SelectItem>
-                {EMPLOYEES.map((e) => (
+                {employees.map((e) => (
                   <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -237,7 +238,7 @@ export default function Tickets() {
                         <TableCell className="font-mono text-sm">{t.pnr ?? "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {t.employeeId
-                            ? (EMPLOYEES.find((e) => e.id === t.employeeId)?.name ?? `#${t.employeeId}`)
+                            ? (employees.find((e) => e.id === t.employeeId)?.name ?? `#${t.employeeId}`)
                             : <span className="text-muted-foreground/50">—</span>}
                         </TableCell>
                         <TableCell>
@@ -276,7 +277,7 @@ export default function Tickets() {
                       {t.pnr && <div className="text-xs text-muted-foreground mt-1">PNR: <span className="font-mono">{t.pnr}</span></div>}
                       {t.employeeId && (
                         <div className="text-xs text-muted-foreground mt-1">
-                          Agent: {EMPLOYEES.find((e) => e.id === t.employeeId)?.name ?? `#${t.employeeId}`}
+                          Agent: {employees.find((e) => e.id === t.employeeId)?.name ?? `#${t.employeeId}`}
                         </div>
                       )}
                     </div>

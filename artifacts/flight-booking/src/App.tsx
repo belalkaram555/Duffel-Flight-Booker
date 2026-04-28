@@ -19,6 +19,7 @@ import Tickets from "@/pages/tickets";
 import TicketForm from "@/pages/ticket-form";
 import TicketDetail from "@/pages/ticket-detail";
 import Reminders from "@/pages/reminders";
+import EmployeesPage from "@/pages/employees";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ function Router() {
         <Route path="/tickets/:id" component={TicketDetail} />
         <Route path="/tickets" component={Tickets} />
         <Route path="/reminders" component={Reminders} />
+        <Route path="/employees" component={EmployeesPage} />
         <Route path="/orders" component={Orders} />
         <Route path="/orders/new" component={Checkout} />
         <Route path="/orders/:orderId" component={OrderDetail} />

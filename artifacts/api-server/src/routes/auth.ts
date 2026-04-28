@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { createHash } from "crypto";
 import { db, employeesTable } from "@workspace/db";
+import { createSession, deleteSession } from "../lib/sessions.js";
 
 const router = Router();
 
@@ -28,13 +29,21 @@ router.post("/auth/login", async (req, res) => {
       return;
     }
 
+    if (!employee.isActive) {
+      res.status(401).json({ error: "unauthorized", message: "Account is inactive. Please contact an administrator." });
+      return;
+    }
+
     const pinHash = hashPin(pin);
     if (pinHash !== employee.pinHash) {
       res.status(401).json({ error: "unauthorized", message: "Invalid username or PIN" });
       return;
     }
 
+    const sessionToken = createSession(employee.id, employee.role);
+
     res.json({
+      sessionToken,
       employee: {
         id: employee.id,
         name: employee.name,
@@ -47,6 +56,14 @@ router.post("/auth/login", async (req, res) => {
     req.log.error({ err }, "Error during login");
     res.status(500).json({ error: "server_error", message: "Failed to log in" });
   }
+});
+
+router.post("/auth/logout", (req, res) => {
+  const auth = req.headers["authorization"];
+  if (auth?.startsWith("Bearer ")) {
+    deleteSession(auth.slice(7));
+  }
+  res.json({ ok: true });
 });
 
 router.get("/auth/employees", async (req, res) => {
