@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sum } from "drizzle-orm";
 import { db, ticketsTable, ticketStatusHistoryTable, paymentsTable, customersTable, insertTicketSchema, updateTicketSchema, insertPaymentSchema } from "@workspace/db";
 
 const router = Router();
@@ -208,7 +208,30 @@ router.post("/tickets/:id/payments", async (req, res) => {
     }
 
     const [payment] = await db.insert(paymentsTable).values(parsed.data).returning();
-    res.status(201).json({ payment });
+
+    const [totals] = await db
+      .select({ total: sum(paymentsTable.amount) })
+      .from(paymentsTable)
+      .where(eq(paymentsTable.ticketId, ticketId));
+
+    const totalPaid = parseFloat(totals?.total ?? "0");
+    const ticketPrice = parseFloat(existing.price ?? "0");
+
+    let newPaymentStatus: "unpaid" | "partially_paid" | "paid" | "refunded" = "unpaid";
+    if (totalPaid <= 0) {
+      newPaymentStatus = "unpaid";
+    } else if (ticketPrice > 0 && totalPaid >= ticketPrice) {
+      newPaymentStatus = "paid";
+    } else {
+      newPaymentStatus = "partially_paid";
+    }
+
+    await db
+      .update(ticketsTable)
+      .set({ paymentStatus: newPaymentStatus, updatedAt: new Date() })
+      .where(eq(ticketsTable.id, ticketId));
+
+    res.status(201).json({ payment, paymentStatus: newPaymentStatus });
   } catch (err) {
     req.log.error({ err }, "Error adding payment");
     res.status(500).json({ error: "server_error", message: "Failed to add payment" });
