@@ -36,6 +36,8 @@ export default function OfferDetail() {
   const [, setLocation] = useLocation();
   const offerId = params?.offerId ?? "";
 
+  const displayCurrency = (localStorage.getItem("displayCurrency") || "USD") as string;
+
   const cachedOffer = useMemo(() => getSessionOffer(offerId), [offerId]);
 
   const {
@@ -157,7 +159,7 @@ export default function OfferDetail() {
         </div>
         <div className="text-right">
           <div className="text-3xl font-bold text-primary">
-            {formatCurrency(offer.totalAmount, offer.totalCurrency)}
+            {formatCurrency(offer.totalAmount, offer.totalCurrency, displayCurrency)}
           </div>
           <div className="text-sm text-muted-foreground">Total Price (incl. taxes)</div>
         </div>
@@ -252,15 +254,15 @@ export default function OfferDetail() {
             <CardContent className="space-y-4">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Base Fare</span>
-                <span>{offer.baseAmount ? formatCurrency(offer.baseAmount, offer.totalCurrency) : '-'}</span>
+                <span>{offer.baseAmount ? formatCurrency(offer.baseAmount, offer.totalCurrency, displayCurrency) : '-'}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Taxes & Fees</span>
-                <span>{offer.taxAmount ? formatCurrency(offer.taxAmount, offer.totalCurrency) : '-'}</span>
+                <span>{offer.taxAmount ? formatCurrency(offer.taxAmount, offer.totalCurrency, displayCurrency) : '-'}</span>
               </div>
               <div className="pt-4 border-t border-border flex justify-between font-bold">
                 <span>Total</span>
-                <span className="text-primary">{formatCurrency(offer.totalAmount, offer.totalCurrency)}</span>
+                <span className="text-primary">{formatCurrency(offer.totalAmount, offer.totalCurrency, displayCurrency)}</span>
               </div>
             </CardContent>
             <CardFooter>
@@ -296,7 +298,7 @@ export default function OfferDetail() {
                       </span>
                     </div>
                     <span className="font-medium text-primary">
-                      +{formatCurrency(svc.totalAmount, svc.totalCurrency)}
+                      +{formatCurrency(svc.totalAmount, svc.totalCurrency, displayCurrency)}
                     </span>
                   </div>
                 ))}

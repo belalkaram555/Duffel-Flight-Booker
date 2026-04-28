@@ -79,11 +79,17 @@ export default function Search() {
   const [tripType, setTripType] = useState<TripType>("one_way");
   const [cabinClass, setCabinClass] = useState<SearchOffersBodyCabinClass>("economy");
   const [adults, setAdults] = useState(1);
-  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>("USD");
+  const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>(
+    () => (localStorage.getItem("displayCurrency") as DisplayCurrency) || "USD"
+  );
   const [searchKey, setSearchKey] = useState<SearchKey | null>(null);
 
   const [stopsFilter, setStopsFilter] = useState<StopsFilter>("all");
   const [selectedAirlines, setSelectedAirlines] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    localStorage.setItem("displayCurrency", displayCurrency);
+  }, [displayCurrency]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -242,12 +248,12 @@ export default function Search() {
               <div className="space-y-1.5">
                 <Label>Passengers</Label>
                 <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={() => setAdults((a) => Math.max(1, a - 1))} className="w-8 h-9 rounded border border-border flex items-center justify-center hover:bg-accent transition-colors font-bold">−</button>
-                  <div className="flex-1 h-9 border border-input rounded flex items-center justify-center gap-1.5 text-sm font-medium bg-background">
+                  <button type="button" onClick={() => setAdults((a) => Math.max(1, a - 1))} className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-accent transition-colors font-bold text-base flex-shrink-0">−</button>
+                  <div className="flex-1 h-9 border border-input rounded-full flex items-center justify-center gap-1.5 text-sm font-medium bg-background px-3">
                     <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                    {adults}
+                    {adults} Adult{adults > 1 ? "s" : ""}
                   </div>
-                  <button type="button" onClick={() => setAdults((a) => Math.min(9, a + 1))} className="w-8 h-9 rounded border border-border flex items-center justify-center hover:bg-accent transition-colors font-bold">+</button>
+                  <button type="button" onClick={() => setAdults((a) => Math.min(9, a + 1))} className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-accent transition-colors font-bold text-base flex-shrink-0">+</button>
                 </div>
               </div>
 
