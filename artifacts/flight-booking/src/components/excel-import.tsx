@@ -45,17 +45,17 @@ function parseDate(val: unknown): string {
 }
 
 const EXPECTED_HEADERS = [
-  "Customer Name",
-  "Customer Phone",
-  "Travel Destination",
-  "Travel Date",
+  "Customer Name / اسم العميل",
+  "Customer Phone / تليفون العميل",
+  "Travel Destination / وجهة السفر",
+  "Travel Date / تاريخ السفر",
   "PNR",
-  "Airline",
-  "Ticket Cost (system)",
-  "Selling Price to Customer",
-  "Ticket Profit",
-  "Payment Method",
-  "Booking Date",
+  "Airline / شركة الطيران",
+  "Ticket Cost (system) / تكلفة التذكرة على السيستم",
+  "Selling Price to Customer / سعر البيع للعميل",
+  "Ticket Profit / ربح التذكرة",
+  "Payment Method / طريقة السداد",
+  "Booking Date / تاريخ الحجز",
 ];
 
 interface Props {
@@ -109,30 +109,33 @@ export function ExcelImportDialog({ open, onClose, onSuccess }: Props) {
         const parsed: ImportRow[] = raw.map((r) => {
           const costPrice = parseNumber(
             r["Ticket Cost (system)"] ?? r["Ticket Cost"] ?? r["Cost Price"] ?? r["ticket_cost"]
+            ?? r["تكلفة التذكرة على السيستم"] ?? r["تكلفة التذكرة"]
           );
           const sellingPrice = parseNumber(
             r["Selling Price to Customer"] ?? r["Selling Price"] ?? r["selling_price"]
+            ?? r["سعر البيع للعميل"] ?? r["سعر البيع"]
           );
           const ticketProfit = parseNumber(
             r["Ticket Profit"] ?? r["Profit"] ?? r["profit"]
+            ?? r["ربح التذكرة"] ?? r["الربح"]
           );
           return {
-            fullName: String(r["Customer Name"] ?? r["Name"] ?? ""),
-            phone: String(r["Customer Phone"] ?? r["Phone"] ?? ""),
-            flightRoute: String(r["Travel Destination"] ?? r["Destination"] ?? ""),
-            travelDate: parseDate(r["Travel Date"] ?? r["Departure Date"] ?? ""),
+            fullName: String(r["Customer Name"] ?? r["Name"] ?? r["اسم العميل"] ?? r["الاسم"] ?? ""),
+            phone: String(r["Customer Phone"] ?? r["Phone"] ?? r["تليفون العميل"] ?? r["التليفون"] ?? r["رقم الهاتف"] ?? ""),
+            flightRoute: String(r["Travel Destination"] ?? r["Destination"] ?? r["وجهة السفر"] ?? r["الوجهة"] ?? ""),
+            travelDate: parseDate(r["Travel Date"] ?? r["Departure Date"] ?? r["تاريخ السفر"] ?? r["تاريخ المغادرة"] ?? ""),
             pnr: String(r["PNR"] ?? r["pnr"] ?? ""),
-            airline: String(r["Airline"] ?? r["airline"] ?? ""),
+            airline: String(r["Airline"] ?? r["airline"] ?? r["شركة الطيران"] ?? r["الطيران"] ?? ""),
             costPrice,
             price: sellingPrice,
             ticketProfit,
-            paymentMethod: String(r["Payment Method"] ?? r["payment_method"] ?? ""),
-            bookingDate: parseDate(r["Booking Date"] ?? r["booking_date"] ?? ""),
+            paymentMethod: String(r["Payment Method"] ?? r["payment_method"] ?? r["طريقة السداد"] ?? r["طريقة الدفع"] ?? ""),
+            bookingDate: parseDate(r["Booking Date"] ?? r["booking_date"] ?? r["تاريخ الحجز"] ?? ""),
           };
         }).filter((r) => r.fullName.trim() !== "");
 
         if (parsed.length === 0) {
-          setParseError('No valid rows found. Make sure "Customer Name" column is filled.');
+          setParseError('No valid rows found. Make sure "Customer Name" or "اسم العميل" column is filled.');
           return;
         }
         setRows(parsed);
