@@ -12,11 +12,20 @@ export function formatCurrency(amount: string | number | null | undefined, curre
 }
 
 export function formatDateTime(isoString: string) {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
+  return new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
-    hour: 'numeric',
+    month: 'short',
+    hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
+  }).format(new Date(isoString));
+}
+
+export function formatDate(isoString: string) {
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
   }).format(new Date(isoString));
 }
 

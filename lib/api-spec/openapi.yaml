@@ -336,6 +336,18 @@ components:
         - departureDateTime
         - arrivalDateTime
 
+    BaggageAllowance:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [carry_on, checked]
+        quantity:
+          type: integer
+      required:
+        - type
+        - quantity
+
     Segment:
       type: object
       properties:
@@ -364,6 +376,11 @@ components:
               type: string
             name:
               type: string
+        baggages:
+          type: array
+          description: Baggage allowances for the first passenger on this segment
+          items:
+            $ref: "#/components/schemas/BaggageAllowance"
       required:
         - id
         - origin

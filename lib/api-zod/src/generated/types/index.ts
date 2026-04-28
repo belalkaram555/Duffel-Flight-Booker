@@ -8,6 +8,8 @@
 
 export * from "./airline";
 export * from "./airport";
+export * from "./baggageAllowance";
+export * from "./baggageAllowanceType";
 export * from "./cancellationResponse";
 export * from "./createOrderBody";
 export * from "./createOrderBodyType";

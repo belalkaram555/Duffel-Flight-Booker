@@ -3,8 +3,9 @@ import { useGetOffer, getGetOfferQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDuration, formatDateTime } from "@/lib/formatters";
-import { Plane, ArrowRight, Info, Check, AlertCircle } from "lucide-react";
+import { Plane, ArrowRight, Info, AlertCircle, Luggage, ShoppingBag, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function OfferDetail() {
@@ -94,7 +95,7 @@ export default function OfferDetail() {
                           <div className="font-medium">{segment.origin.name}</div>
                           <div className="text-sm text-muted-foreground mb-4">{formatDateTime(segment.departureDateTime)}</div>
                           
-                          <div className="flex items-center gap-2 text-sm bg-muted/50 w-fit px-3 py-1.5 rounded-md mb-4">
+                          <div className="flex items-center gap-2 text-sm bg-muted/50 w-fit px-3 py-1.5 rounded-md mb-3">
                             <Plane className="h-3 w-3" />
                             <span>{segment.operatingCarrier?.name || segment.marketingCarrier?.name} {segment.flightNumber}</span>
                             <span className="text-muted-foreground">&bull;</span>
@@ -104,6 +105,29 @@ export default function OfferDetail() {
                                 <span className="text-muted-foreground">&bull;</span>
                                 <span className="text-muted-foreground">{segment.aircraft.name}</span>
                               </>
+                            )}
+                          </div>
+
+                          {/* Baggage allowance */}
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {(segment.baggages && segment.baggages.length > 0) ? (
+                              segment.baggages.map((bag, bi) => (
+                                <Badge key={bi} variant="secondary" className="gap-1.5 text-xs py-1">
+                                  {bag.type === "checked" ? (
+                                    <Luggage className="h-3.5 w-3.5" />
+                                  ) : (
+                                    <ShoppingBag className="h-3.5 w-3.5" />
+                                  )}
+                                  {bag.quantity > 0
+                                    ? `${bag.quantity}× ${bag.type === "checked" ? "Checked bag" : "Carry-on"}`
+                                    : `No ${bag.type === "checked" ? "checked bag" : "carry-on"}`}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline" className="gap-1.5 text-xs py-1 text-muted-foreground">
+                                <X className="h-3.5 w-3.5" />
+                                No baggage info available
+                              </Badge>
                             )}
                           </div>
                           

@@ -67,6 +67,19 @@ export interface Airline {
   logotypeLockupImageUrl?: string;
 }
 
+export type BaggageAllowanceType =
+  (typeof BaggageAllowanceType)[keyof typeof BaggageAllowanceType];
+
+export const BaggageAllowanceType = {
+  carry_on: "carry_on",
+  checked: "checked",
+} as const;
+
+export interface BaggageAllowance {
+  type: BaggageAllowanceType;
+  quantity: number;
+}
+
 export type SegmentAircraft = {
   iataCode?: string;
   name?: string;
@@ -83,6 +96,8 @@ export interface Segment {
   marketingCarrier?: Airline;
   operatingCarrier?: Airline;
   aircraft?: SegmentAircraft;
+  /** Baggage allowances for the first passenger on this segment */
+  baggages?: BaggageAllowance[];
 }
 
 export interface Slice {

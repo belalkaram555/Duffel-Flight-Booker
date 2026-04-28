@@ -1,33 +1,90 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useSearchOffers } from "@workspace/api-client-react";
-import type { PassengerInput, PassengerInputType, SearchOffersBodyCabinClass } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
+import type { PassengerInputType, SearchOffersBodyCabinClass, SearchOffersResponse } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatCurrency, formatDuration } from "@/lib/formatters";
-import { Plane, Search as SearchIcon, ArrowRight, Clock, Users, ArrowLeftRight } from "lucide-react";
+import { formatCurrency, formatDuration, formatDate } from "@/lib/formatters";
+import { Plane, Search as SearchIcon, ArrowRight, Clock, Users, ArrowLeftRight, Luggage, ShoppingBag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { AirportCombobox } from "@/components/airport-combobox";
 import { Input } from "@/components/ui/input";
 
+interface SearchKey {
+  origin: string;
+  destination: string;
+  departureDate: string;
+  cabinClass: SearchOffersBodyCabinClass;
+  adults: number;
+}
+
+async function fetchOffers(key: SearchKey): Promise<SearchOffersResponse> {
+  const passengers = Array.from({ length: key.adults }).map(() => ({
+    type: "adult" as PassengerInputType,
+  }));
+  const res = await fetch("/api/offers/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      origin: key.origin,
+      destination: key.destination,
+      departureDate: key.departureDate,
+      passengers,
+      cabinClass: key.cabinClass,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: "Search failed" }));
+    throw new Error(err.message || "Search failed");
+  }
+  return res.json();
+}
+
 export default function Search() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const [origin, setOrigin] = useState("LHR");
-  const [destination, setDestination] = useState("JFK");
-  const [departureDate, setDepartureDate] = useState(() => {
+  const defaultDate = () => {
     const d = new Date();
     d.setDate(d.getDate() + 14);
     return d.toISOString().split("T")[0];
-  });
+  };
+
+  const [origin, setOrigin] = useState("LHR");
+  const [destination, setDestination] = useState("JFK");
+  const [departureDate, setDepartureDate] = useState(defaultDate);
   const [cabinClass, setCabinClass] = useState<SearchOffersBodyCabinClass>("economy");
   const [adults, setAdults] = useState(1);
+  const [searchKey, setSearchKey] = useState<SearchKey | null>(null);
 
-  const searchOffers = useSearchOffers();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const from = params.get("from");
+    const to = params.get("to");
+    const date = params.get("date");
+    const cabin = (params.get("cabin") as SearchOffersBodyCabinClass) || "economy";
+    const adultsCount = parseInt(params.get("adults") || "1", 10);
+    if (from && to && date) {
+      setOrigin(from);
+      setDestination(to);
+      setDepartureDate(date);
+      setCabinClass(cabin);
+      setAdults(adultsCount);
+      setSearchKey({ origin: from, destination: to, departureDate: date, cabinClass: cabin, adults: adultsCount });
+    }
+  }, []);
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["offers-search", searchKey],
+    queryFn: () => fetchOffers(searchKey!),
+    enabled: !!searchKey,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 
   function swapAirports() {
     const tmp = origin;
@@ -45,12 +102,9 @@ export default function Search() {
       });
       return;
     }
-    const passengers: PassengerInput[] = Array.from({ length: adults }).map(() => ({
-      type: "adult" as PassengerInputType,
-    }));
-    searchOffers.mutate({
-      data: { origin, destination, departureDate, passengers, cabinClass },
-    });
+    const key: SearchKey = { origin, destination, departureDate, cabinClass, adults };
+    setSearchKey(key);
+    setLocation(`/search?from=${origin}&to=${destination}&date=${departureDate}&cabin=${cabinClass}&adults=${adults}`);
   };
 
   return (
@@ -65,7 +119,6 @@ export default function Search() {
       <Card>
         <CardContent className="pt-5 pb-5">
           <form onSubmit={handleSearch} className="space-y-5">
-            {/* Row 1: Origin / Swap / Destination */}
             <div className="flex flex-col sm:flex-row gap-3 items-end">
               <div className="flex-1">
                 <AirportCombobox
@@ -95,7 +148,6 @@ export default function Search() {
               </div>
             </div>
 
-            {/* Row 2: Date / Passengers / Cabin */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="date">Departure Date</Label>
@@ -153,10 +205,10 @@ export default function Search() {
             <div className="flex justify-end">
               <Button
                 type="submit"
-                disabled={searchOffers.isPending}
+                disabled={isLoading}
                 className="w-full sm:w-auto px-8"
               >
-                {searchOffers.isPending ? (
+                {isLoading ? (
                   <span className="flex items-center gap-2">
                     <SearchIcon className="h-4 w-4 animate-spin" /> Searching...
                   </span>
@@ -171,8 +223,7 @@ export default function Search() {
         </CardContent>
       </Card>
 
-      {/* Loading skeletons */}
-      {searchOffers.isPending && (
+      {isLoading && (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <Card key={i}>
@@ -190,18 +241,16 @@ export default function Search() {
         </div>
       )}
 
-      {/* Error */}
-      {searchOffers.isError && (
+      {isError && (
         <Card className="border-destructive bg-destructive/10">
           <CardContent className="p-5 text-destructive flex items-start gap-3">
             <span className="font-medium">Search failed:</span>
-            <span>{searchOffers.error?.message || "An unexpected error occurred."}</span>
+            <span>{(error as Error)?.message || "An unexpected error occurred."}</span>
           </CardContent>
         </Card>
       )}
 
-      {/* Empty */}
-      {searchOffers.isSuccess && searchOffers.data.offers.length === 0 && (
+      {data && data.offers.length === 0 && (
         <div className="text-center py-16 border rounded-lg bg-card">
           <Plane className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
           <h3 className="text-lg font-medium">No flights found</h3>
@@ -211,24 +260,31 @@ export default function Search() {
         </div>
       )}
 
-      {/* Results */}
-      {searchOffers.isSuccess && searchOffers.data.offers.length > 0 && (
+      {data && data.offers.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">
-            {searchOffers.data.offers.length} offers found
+            {data.offers.length} offers found
           </h2>
           <div className="grid gap-3">
-            {searchOffers.data.offers.map((offer) => {
+            {data.offers.map((offer) => {
               const slice = offer.slices[0];
               const segments = slice?.segments || [];
               const first = segments[0];
               const last = segments[segments.length - 1];
+
               const depTime = first?.departureDateTime
-                ? new Date(first.departureDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                ? new Date(first.departureDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
                 : "--:--";
               const arrTime = last?.arrivalDateTime
-                ? new Date(last.arrivalDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                ? new Date(last.arrivalDateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
                 : "--:--";
+              const depDate = first?.departureDateTime
+                ? formatDate(first.departureDateTime)
+                : "";
+
+              const allBaggages = segments.flatMap((s) => s.baggages ?? []);
+              const checkedBag = allBaggages.find((b) => b.type === "checked");
+              const carryOn = allBaggages.find((b) => b.type === "carry_on");
 
               return (
                 <Card
@@ -240,17 +296,23 @@ export default function Search() {
 
                       {/* Airline + Route */}
                       <div className="flex items-center gap-4 flex-1 min-w-0">
-                        {offer.owner?.logoSymbolUrl ? (
-                          <img
-                            src={offer.owner.logoSymbolUrl}
-                            alt={offer.owner.name}
-                            className="w-10 h-10 object-contain flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-muted rounded flex items-center justify-center font-bold text-muted-foreground text-xs flex-shrink-0">
-                            {offer.owner?.iataCode ?? "??"}
-                          </div>
-                        )}
+                        {/* Airline logo + name */}
+                        <div className="flex flex-col items-center gap-1 flex-shrink-0 w-14">
+                          {offer.owner?.logoSymbolUrl ? (
+                            <img
+                              src={offer.owner.logoSymbolUrl}
+                              alt={offer.owner.name}
+                              className="w-10 h-10 object-contain"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center font-bold text-muted-foreground text-xs">
+                              {offer.owner?.iataCode ?? "??"}
+                            </div>
+                          )}
+                          <span className="text-xs text-muted-foreground text-center leading-tight line-clamp-2">
+                            {offer.owner?.name}
+                          </span>
+                        </div>
 
                         <div className="flex-1 grid grid-cols-3 gap-2 text-center items-center min-w-0">
                           <div>
@@ -259,6 +321,9 @@ export default function Search() {
                             <div className="text-xs text-muted-foreground truncate hidden sm:block">
                               {slice?.origin.cityName}
                             </div>
+                            {depDate && (
+                              <div className="text-xs text-muted-foreground hidden sm:block">{depDate}</div>
+                            )}
                           </div>
 
                           <div className="flex flex-col items-center px-2">
@@ -293,6 +358,26 @@ export default function Search() {
                           </div>
                           <div className="text-xs text-muted-foreground uppercase tracking-wide">
                             {offer.cabinClass?.replace("_", " ")}
+                          </div>
+                          {/* Baggage summary */}
+                          <div className="flex gap-1 justify-end mt-1 flex-wrap">
+                            {checkedBag && checkedBag.quantity > 0 ? (
+                              <Badge variant="secondary" className="text-xs gap-1 px-1.5 py-0.5">
+                                <Luggage className="h-3 w-3" />
+                                {checkedBag.quantity}✕ checked
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs gap-1 px-1.5 py-0.5 text-muted-foreground">
+                                <Luggage className="h-3 w-3" />
+                                No checked bag
+                              </Badge>
+                            )}
+                            {carryOn && carryOn.quantity > 0 && (
+                              <Badge variant="secondary" className="text-xs gap-1 px-1.5 py-0.5">
+                                <ShoppingBag className="h-3 w-3" />
+                                {carryOn.quantity}✕ carry-on
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <Button

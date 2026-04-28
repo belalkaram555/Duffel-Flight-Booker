@@ -7,6 +7,7 @@
  */
 import type { Airline } from "./airline";
 import type { Airport } from "./airport";
+import type { BaggageAllowance } from "./baggageAllowance";
 import type { SegmentAircraft } from "./segmentAircraft";
 
 export interface Segment {
@@ -20,4 +21,6 @@ export interface Segment {
   marketingCarrier?: Airline;
   operatingCarrier?: Airline;
   aircraft?: SegmentAircraft;
+  /** Baggage allowances for the first passenger on this segment */
+  baggages?: BaggageAllowance[];
 }

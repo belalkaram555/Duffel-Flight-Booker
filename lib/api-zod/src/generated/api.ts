@@ -110,6 +110,17 @@ export const SearchOffersResponse = zod.object({
                     name: zod.string().optional(),
                   })
                   .optional(),
+                baggages: zod
+                  .array(
+                    zod.object({
+                      type: zod.enum(["carry_on", "checked"]),
+                      quantity: zod.number(),
+                    }),
+                  )
+                  .optional()
+                  .describe(
+                    "Baggage allowances for the first passenger on this segment",
+                  ),
               }),
             )
             .optional(),
@@ -204,6 +215,17 @@ export const GetOfferResponse = zod.object({
                 name: zod.string().optional(),
               })
               .optional(),
+            baggages: zod
+              .array(
+                zod.object({
+                  type: zod.enum(["carry_on", "checked"]),
+                  quantity: zod.number(),
+                }),
+              )
+              .optional()
+              .describe(
+                "Baggage allowances for the first passenger on this segment",
+              ),
           }),
         )
         .optional(),
@@ -302,6 +324,17 @@ export const ListOrdersResponse = zod.object({
                       name: zod.string().optional(),
                     })
                     .optional(),
+                  baggages: zod
+                    .array(
+                      zod.object({
+                        type: zod.enum(["carry_on", "checked"]),
+                        quantity: zod.number(),
+                      }),
+                    )
+                    .optional()
+                    .describe(
+                      "Baggage allowances for the first passenger on this segment",
+                    ),
                 }),
               )
               .optional(),
@@ -433,6 +466,17 @@ export const GetOrderResponse = zod.object({
                   name: zod.string().optional(),
                 })
                 .optional(),
+              baggages: zod
+                .array(
+                  zod.object({
+                    type: zod.enum(["carry_on", "checked"]),
+                    quantity: zod.number(),
+                  }),
+                )
+                .optional()
+                .describe(
+                  "Baggage allowances for the first passenger on this segment",
+                ),
             }),
           )
           .optional(),
@@ -552,6 +596,17 @@ export const GetStatsSummaryResponse = zod.object({
                       name: zod.string().optional(),
                     })
                     .optional(),
+                  baggages: zod
+                    .array(
+                      zod.object({
+                        type: zod.enum(["carry_on", "checked"]),
+                        quantity: zod.number(),
+                      }),
+                    )
+                    .optional()
+                    .describe(
+                      "Baggage allowances for the first passenger on this segment",
+                    ),
                 }),
               )
               .optional(),

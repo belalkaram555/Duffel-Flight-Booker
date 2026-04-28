@@ -115,6 +115,10 @@ router.post("/offers/search", async (req, res) => {
                 name: seg.aircraft.name,
               }
             : undefined,
+          baggages: seg.passengers?.[0]?.baggages?.map((b) => ({
+            type: b.type as "carry_on" | "checked",
+            quantity: b.quantity,
+          })) ?? [],
         })),
       })),
       passengers: offer.passengers,
@@ -205,6 +209,10 @@ router.get("/offers/:offerId", async (req, res) => {
                 name: seg.aircraft.name,
               }
             : undefined,
+          baggages: seg.passengers?.[0]?.baggages?.map((b) => ({
+            type: b.type as "carry_on" | "checked",
+            quantity: b.quantity,
+          })) ?? [],
         })),
       })),
       passengers: offer.passengers,
