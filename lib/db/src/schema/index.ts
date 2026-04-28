@@ -1,4 +1,5 @@
 export * from "./customers";
+export * from "./employees";
 export * from "./tickets";
 export * from "./customer_notes";
 export * from "./ticket_status_history";

@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTime } from "@/lib/formatters";
-import { useEmployee, EMPLOYEES } from "@/contexts/employee-context";
+import { useCurrentEmployee, EMPLOYEES } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -195,7 +195,7 @@ export default function Reminders() {
   const [endDate, setEndDate] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [myReminders, setMyReminders] = useState(false);
-  const { currentEmployee } = useEmployee();
+  const currentEmployee = useCurrentEmployee();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["followups"],

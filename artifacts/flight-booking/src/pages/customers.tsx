@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatShortDate } from "@/lib/formatters";
 import { CustomerForm, EMPTY_CUSTOMER_FORM } from "@/components/customer-form";
 import { STATUS_COLORS, STATUS_LABELS, SOURCE_LABELS, CUSTOMER_STATUSES } from "@/lib/customer-constants";
-import { useEmployee, EMPLOYEES } from "@/contexts/employee-context";
+import { useCurrentEmployee, EMPLOYEES } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -104,7 +104,7 @@ export default function Customers() {
   const [employeeFilter, setEmployeeFilter] = useState("all");
   const [myCustomers, setMyCustomers] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const { currentEmployee } = useEmployee();
+  const currentEmployee = useCurrentEmployee();
 
   const activeEmployeeId = myCustomers
     ? currentEmployee.id

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Plane, Search, ListFilter, LayoutDashboard, Menu, X, Users, Tag, Bell } from "lucide-react";
+import { Plane, Search, ListFilter, LayoutDashboard, Menu, X, Users, Tag, Bell, LogOut } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+import { useEmployee } from "@/contexts/employee-context";
 
 const SIDEBAR_GRADIENT = "linear-gradient(180deg, #011a13 0%, #022c22 40%, #064e3b 100%)";
 const GOLD_GRADIENT = "linear-gradient(135deg, #d4af37 0%, #f5d76e 50%, #d4af37 100%)";
@@ -10,6 +11,7 @@ const GOLD_GRADIENT = "linear-gradient(135deg, #d4af37 0%, #f5d76e 50%, #d4af37 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { currentEmployee, logout } = useEmployee();
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -70,12 +72,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-3 px-2">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
             style={{ background: GOLD_GRADIENT, color: "#022c22" }}>
-            JS
+            {currentEmployee?.initials ?? "?"}
           </div>
-          <div>
-            <div className="text-white text-sm font-semibold">James Smith</div>
-            <div className="text-xs" style={{ color: "#86efac" }}>Administrator</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-white text-sm font-semibold truncate">{currentEmployee?.name ?? ""}</div>
+            <div className="text-xs truncate" style={{ color: "#86efac" }}>{currentEmployee?.role ?? ""}</div>
           </div>
+          <button
+            onClick={logout}
+            title="Sign out"
+            className="p-1.5 rounded-full transition-colors flex-shrink-0"
+            style={{ color: "rgba(255,255,255,0.4)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.8)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.4)"; }}
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </>
@@ -146,9 +158,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
-            style={{ background: GOLD_GRADIENT, color: "#022c22" }}>
-            JS
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
+              style={{ background: GOLD_GRADIENT, color: "#022c22" }}>
+              {currentEmployee?.initials ?? "?"}
+            </div>
+            <button
+              onClick={logout}
+              title="Sign out"
+              className="hidden md:flex p-2 rounded-full transition-colors items-center gap-1.5 text-xs font-medium"
+              style={{ color: "#047857" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f0fdf4"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
           </div>
         </header>
 

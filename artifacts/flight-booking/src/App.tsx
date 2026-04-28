@@ -4,7 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { Layout } from "@/components/layout";
-import { EmployeeProvider } from "@/contexts/employee-context";
+import { EmployeeProvider, useEmployee } from "@/contexts/employee-context";
+import Login from "@/pages/login";
 
 import Dashboard from "@/pages/dashboard";
 import Search from "@/pages/search";
@@ -22,6 +23,20 @@ import Reminders from "@/pages/reminders";
 const queryClient = new QueryClient();
 
 function Router() {
+  const { currentEmployee, isLoading } = useEmployee();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#011a13" }}>
+        <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!currentEmployee) {
+    return <Login />;
+  }
+
   return (
     <Layout>
       <Switch>

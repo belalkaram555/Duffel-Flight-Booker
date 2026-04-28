@@ -25,3 +25,14 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+
+## Authentication
+
+Simple PIN-based auth for the Flight Booking app. No JWT/sessions — employees are stored in DB and authenticated via SHA-256 hashed PIN. Session persists in `localStorage` under key `aeroops_employee`.
+
+- **Employees table**: `lib/db/src/schema/employees.ts`
+- **API routes**: `POST /api/auth/login`, `GET /api/auth/employees`
+- **Frontend context**: `artifacts/flight-booking/src/contexts/employee-context.tsx`
+- **Login page**: `artifacts/flight-booking/src/pages/login.tsx`
+- **Default credentials**: james/1234, sara/2345, mohamed/3456, nadia/4567
+- **Seeding**: Auto-seeds employees on server startup if table is empty (`artifacts/api-server/src/lib/seed-employees.ts`)

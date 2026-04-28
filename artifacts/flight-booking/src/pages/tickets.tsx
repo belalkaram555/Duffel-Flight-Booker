@@ -13,7 +13,7 @@ import {
   TICKET_STATUS_COLORS, TICKET_STATUS_LABELS, PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS,
   TICKET_STATUSES, PAYMENT_STATUSES,
 } from "@/lib/ticket-constants";
-import { useEmployee, EMPLOYEES } from "@/contexts/employee-context";
+import { useCurrentEmployee, EMPLOYEES } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -55,7 +55,7 @@ export default function Tickets() {
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [employeeFilter, setEmployeeFilter] = useState("all");
   const [myTickets, setMyTickets] = useState(false);
-  const { currentEmployee } = useEmployee();
+  const currentEmployee = useCurrentEmployee();
 
   const activeEmployeeId = myTickets
     ? currentEmployee.id

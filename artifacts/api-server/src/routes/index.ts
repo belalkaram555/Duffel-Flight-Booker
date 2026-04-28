@@ -9,10 +9,12 @@ import notesRouter from "./notes";
 import ticketsRouter from "./tickets";
 import remindersRouter from "./reminders";
 import dashboardRouter from "./dashboard";
+import authRouter from "./auth";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(authRouter);
 router.use(offersRouter);
 router.use(ordersRouter);
 router.use(statsRouter);

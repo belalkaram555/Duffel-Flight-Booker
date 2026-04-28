@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { TICKET_STATUS_COLORS, TICKET_STATUS_LABELS, PAYMENT_STATUS_COLORS, PAYMENT_STATUS_LABELS } from "@/lib/ticket-constants";
 import { STATUS_COLORS, STATUS_LABELS } from "@/lib/customer-constants";
-import { useEmployee } from "@/contexts/employee-context";
+import { useCurrentEmployee } from "@/contexts/employee-context";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -117,7 +117,7 @@ function SectionSkeleton() {
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
-  const { currentEmployee } = useEmployee();
+  const currentEmployee = useCurrentEmployee();
 
   const { data: crmData, isLoading: crmLoading, isError: crmError } = useQuery({
     queryKey: ["dashboard-stats"],
