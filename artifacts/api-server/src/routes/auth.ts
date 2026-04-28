@@ -40,7 +40,7 @@ router.post("/auth/login", async (req, res) => {
       return;
     }
 
-    const sessionToken = createSession(employee.id, employee.role);
+    const sessionToken = createSession(employee.id, employee.role, employee.name);
 
     res.json({
       sessionToken,

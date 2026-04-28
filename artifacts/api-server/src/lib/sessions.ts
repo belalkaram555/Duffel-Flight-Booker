@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 
 interface Session {
   employeeId: number;
+  name: string;
   role: string;
   expiresAt: number;
 }
@@ -16,10 +17,10 @@ function prune(): void {
   }
 }
 
-export function createSession(employeeId: number, role: string): string {
+export function createSession(employeeId: number, role: string, name: string): string {
   prune();
   const token = randomBytes(32).toString("hex");
-  store.set(token, { employeeId, role, expiresAt: Date.now() + SESSION_TTL_MS });
+  store.set(token, { employeeId, name, role, expiresAt: Date.now() + SESSION_TTL_MS });
   return token;
 }
 

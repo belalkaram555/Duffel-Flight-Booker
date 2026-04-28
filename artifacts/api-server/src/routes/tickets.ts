@@ -62,7 +62,7 @@ router.post("/tickets", requireAuth, async (req, res) => {
       ticketId: ticket!.id,
       oldStatus: null,
       newStatus: ticket!.ticketStatus,
-      changedBy: "system",
+      changedBy: req.employee?.name ?? "system",
     });
 
     res.status(201).json({ ticket });
@@ -155,7 +155,7 @@ router.put("/tickets/:id", requireAuth, async (req, res) => {
         ticketId: id,
         oldStatus: existing.ticketStatus,
         newStatus: parsed.data.ticketStatus,
-        changedBy: req.headers["x-employee-name"] as string || "employee",
+        changedBy: req.employee?.name ?? "employee",
       });
     }
 
